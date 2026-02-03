@@ -18,6 +18,7 @@ limit = 0
   abandon = ["a"]
   ai_implement = ["I"]
   workspace = ["w"]
+  select_ai_ancestors = ["ctrl+a"]
   integrate = ["i"]
   restack = ["t"]
   diff = ["d"]
