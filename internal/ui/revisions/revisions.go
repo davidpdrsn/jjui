@@ -41,6 +41,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/integrate"
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/operations/squash"
+	"github.com/idursun/jjui/internal/ui/operations/workspace"
 )
 
 var (
@@ -397,8 +398,6 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			return m.handleIntent(intents.Navigate{Target: intents.TargetChild})
 		case key.Matches(msg, m.keymap.JumpToWorkingCopy):
 			return m.handleIntent(intents.Navigate{Target: intents.TargetWorkingCopy})
-		case key.Matches(msg, m.keymap.AceJump):
-			return m.handleIntent(intents.StartAceJump{})
 		default:
 			if op, ok := m.op.(common.Focusable); ok && op.IsFocused() {
 				return m.op.Update(msg)
@@ -407,6 +406,8 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			switch {
 			case m.quickSearch != "" && (msg.Type == tea.KeyEsc || msg.Type == tea.KeyEnter):
 				return m.handleIntent(intents.RevisionsQuickSearchClear{})
+			case key.Matches(msg, m.keymap.AceJump):
+				return m.handleIntent(intents.StartAceJump{})
 			case key.Matches(msg, m.keymap.ToggleSelect):
 				return m.handleIntent(intents.RevisionsToggleSelect{})
 			case key.Matches(msg, m.keymap.Cancel):
@@ -435,6 +436,8 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				return m.handleIntent(intents.StartAbandon{})
 			case key.Matches(msg, m.keymap.AiImplement):
 				return m.handleIntent(intents.StartAiImplement{})
+			case key.Matches(msg, m.keymap.Workspace):
+				return m.handleIntent(intents.StartWorkspace{})
 			case key.Matches(msg, m.keymap.Integrate):
 				return m.handleIntent(intents.StartIntegrate{})
 			case key.Matches(msg, m.keymap.Restack):
@@ -484,6 +487,8 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return m.startAbandon(intent)
 	case intents.StartAiImplement:
 		return m.startAiImplement(intent)
+	case intents.StartWorkspace:
+		return m.startWorkspace(intent)
 	case intents.StartIntegrate:
 		return m.startIntegrate(intent)
 	case intents.StartRestack:
@@ -774,6 +779,18 @@ func (m *Model) startIntegrate(intent intents.StartIntegrate) tea.Cmd {
 	return m.op.Init()
 }
 
+func (m *Model) startWorkspace(intent intents.StartWorkspace) tea.Cmd {
+	selected := intent.Selected
+	if len(selected.Revisions) == 0 {
+		selected = m.SelectedRevisions()
+	}
+	if len(selected.Revisions) == 0 {
+		return nil
+	}
+	m.op = workspace.NewOperation(m.context, selected)
+	return m.op.Init()
+}
+
 func (m *Model) startRestack() tea.Cmd {
 	return m.context.RunCommand(jj.Restack(), common.Refresh)
 }
@@ -1028,15 +1045,8 @@ func (m *Model) ViewRect(dl *render.DisplayContext, box layout.Box) {
 		m.ensureCursorView,
 	)
 
-	switch overlayOp := m.op.(type) {
-	case *rebase.Operation:
-		overlayOp.ViewRect(dl, box)
-	case *duplicate.Operation:
-		overlayOp.ViewRect(dl, box)
-	case *revert.Operation:
-		overlayOp.ViewRect(dl, box)
-	case *squash.Operation:
-		overlayOp.ViewRect(dl, box)
+	if overlayOp, ok := m.op.(common.Overlay); ok && overlayOp.IsOverlay() {
+		m.op.ViewRect(dl, box)
 	}
 
 	// Reset the flag after ensuring cursor is visible

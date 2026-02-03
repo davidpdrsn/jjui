@@ -5,6 +5,7 @@ matched = "cyan"
 selected = { fg = "cyan", bg = "bright black" }
 target_marker = { fg = "black", bg = "red", bold = true }
 source_marker = { fg = "black", bg = "cyan" }
+"workspace source_marker" = { fg = "black", bg = "red", bold = true }
 success = "green"
 error = "red"
 "confirmation text" = { fg = "magenta", bold = true }

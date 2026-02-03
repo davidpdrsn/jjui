@@ -242,6 +242,32 @@ func BookmarkUntrack(name string, remote string) CommandArgs {
 	return args
 }
 
+func WorkspaceAdd(path string, revision string, name string) CommandArgs {
+	args := []string{"workspace", "add"}
+	if path != "" {
+		args = append(args, path)
+	}
+	if revision != "" {
+		args = append(args, "-r", revision)
+	}
+	if name != "" {
+		args = append(args, "--name", name)
+	}
+	return args
+}
+
+func WorkspaceForget(name string) CommandArgs {
+	args := []string{"workspace", "forget"}
+	if name != "" {
+		args = append(args, name)
+	}
+	return args
+}
+
+func WorkspaceList() CommandArgs {
+	return []string{"workspace", "list", "--color", "never"}
+}
+
 func Squash(from SelectedRevisions, destination string, files []string, keepEmptied bool, useDestinationMessage bool, interactive bool, ignoreImmutable bool) CommandArgs {
 	args := []string{"squash"}
 	args = append(args, from.AsPrefixedArgs("--from")...)

@@ -137,6 +137,12 @@ type StartIntegrate struct {
 
 func (StartIntegrate) isIntent() {}
 
+type StartWorkspace struct {
+	Selected jj.SelectedRevisions
+}
+
+func (StartWorkspace) isIntent() {}
+
 type StartRestack struct{}
 
 func (StartRestack) isIntent() {}
