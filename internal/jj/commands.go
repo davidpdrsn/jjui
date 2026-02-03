@@ -124,6 +124,15 @@ func Abandon(revision SelectedRevisions, ignoreImmutable bool) CommandArgs {
 	return args
 }
 
+func Integrate(revisions SelectedRevisions) CommandArgs {
+	args := []string{"integrate"}
+	if len(revisions.Revisions) == 0 {
+		return args
+	}
+	revset := strings.Join(revisions.GetIds(), "|")
+	return append(args, revset)
+}
+
 func Diff(revision string, fileName string, extraArgs ...string) CommandArgs {
 	args := []string{"diff", "-r", revision, "--color", "always", "--ignore-working-copy"}
 	if fileName != "" {

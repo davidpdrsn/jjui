@@ -37,6 +37,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations/bookmark"
 	"github.com/idursun/jjui/internal/ui/operations/details"
 	"github.com/idursun/jjui/internal/ui/operations/evolog"
+	"github.com/idursun/jjui/internal/ui/operations/integrate"
 	"github.com/idursun/jjui/internal/ui/operations/rebase"
 	"github.com/idursun/jjui/internal/ui/operations/squash"
 )
@@ -424,6 +425,8 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				return m.handleIntent(intents.StartAbsorb{})
 			case key.Matches(msg, m.keymap.Abandon):
 				return m.handleIntent(intents.StartAbandon{})
+			case key.Matches(msg, m.keymap.Integrate):
+				return m.handleIntent(intents.StartIntegrate{})
 			case key.Matches(msg, m.keymap.Bookmark.Set):
 				return m.handleIntent(intents.BookmarksSet{})
 			case key.Matches(msg, m.keymap.Split, m.keymap.SplitParallel):
@@ -467,6 +470,8 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return m.startAbsorb(intent)
 	case intents.StartAbandon:
 		return m.startAbandon(intent)
+	case intents.StartIntegrate:
+		return m.startIntegrate(intent)
 	case intents.StartNew:
 		return m.startNew(intent)
 	case intents.CommitWorkingCopy:
@@ -726,6 +731,18 @@ func (m *Model) startAbandon(intent intents.StartAbandon) tea.Cmd {
 		return nil
 	}
 	m.op = abandon.NewOperation(m.context, selected)
+	return m.op.Init()
+}
+
+func (m *Model) startIntegrate(intent intents.StartIntegrate) tea.Cmd {
+	selected := intent.Selected
+	if len(selected.Revisions) == 0 {
+		selected = m.SelectedRevisions()
+	}
+	if len(selected.Revisions) == 0 {
+		return nil
+	}
+	m.op = integrate.NewOperation(m.context, selected)
 	return m.op.Init()
 }
 
