@@ -125,6 +125,12 @@ type StartAbandon struct {
 
 func (StartAbandon) isIntent() {}
 
+type StartAiImplement struct {
+	Selected jj.SelectedRevisions
+}
+
+func (StartAiImplement) isIntent() {}
+
 type StartIntegrate struct {
 	Selected jj.SelectedRevisions
 }
@@ -138,6 +144,14 @@ func (StartRestack) isIntent() {}
 type AbandonToggleSelect struct{}
 
 func (AbandonToggleSelect) isIntent() {}
+
+type AiImplementToggleSelect struct{}
+
+func (AiImplementToggleSelect) isIntent() {}
+
+type AiImplementToggleRemove struct{}
+
+func (AiImplementToggleRemove) isIntent() {}
 
 type IntegrateToggleSelect struct{}
 

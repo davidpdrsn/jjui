@@ -127,6 +127,16 @@ func CommandRunning(args []string) tea.Cmd {
 	}
 }
 
+func CommandRunningProgram(program string, args []string) tea.Cmd {
+	return func() tea.Msg {
+		command := program
+		if len(args) > 0 {
+			command += " " + strings.Join(args, " ")
+		}
+		return CommandRunningMsg(command)
+	}
+}
+
 func UpdateRevSet(revset string) tea.Cmd {
 	return func() tea.Msg {
 		return UpdateRevSetMsg(revset)

@@ -350,7 +350,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return m.handleIntent(intents.OpenBookmarks{})
 		case key.Matches(msg, m.keyMap.ExpandStatus):
 			return m.handleIntent(intents.ExpandStatusToggle{})
-		case key.Matches(msg, m.keyMap.Preview.Mode):
+		case key.Matches(msg, m.keyMap.Preview.Mode) && m.revisions.OperationName() != "ai implement":
 			return m.handleIntent(intents.PreviewToggle{})
 		case key.Matches(msg, m.keyMap.Preview.ToggleBottom):
 			return m.handleIntent(intents.PreviewToggleBottom{})
