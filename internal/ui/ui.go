@@ -40,27 +40,45 @@ import (
 )
 
 type Model struct {
-	revisions       *revisions.Model
-	oplog           *oplog.Model
-	revsetModel     *revset.Model
-	previewModel    *preview.Model
-	diff            *diff.Model
-	leader          *leader.Model
-	flash           *flash.Model
-	state           common.State
-	status          *status.Model
-	password        *password.Model
-	context         *context.MainContext
-	scriptRunner    *scripting.Runner
-	keyMap          config.KeyMappings[key.Binding]
-	stacked         common.ImmediateModel
-	sequenceOverlay *customcommands.SequenceOverlay
-	displayContext  *render.DisplayContext
-	width           int
-	height          int
-	revisionsSplit  *split
-	activeSplit     *split
-	splitActive     bool
+	revisions        *revisions.Model
+	oplog            *oplog.Model
+	revsetModel      *revset.Model
+	previewModel     *preview.Model
+	diff             *diff.Model
+	leader           *leader.Model
+	flash            *flash.Model
+	state            common.State
+	status           *status.Model
+	password         *password.Model
+	context          *context.MainContext
+	scriptRunner     *scripting.Runner
+	keyMap           config.KeyMappings[key.Binding]
+	stacked          common.ImmediateModel
+	sequenceOverlay  *customcommands.SequenceOverlay
+	displayContext   *render.DisplayContext
+	width            int
+	height           int
+	revisionsSplit   *split
+	activeSplit      *split
+	splitActive      bool
+	layerStack       []uiLayerEntry
+	activeRevisionOp string
+}
+
+type uiLayer int
+
+const (
+	uiLayerPreview uiLayer = iota
+	uiLayerRevisionOp
+	uiLayerOpLog
+	uiLayerDiff
+	uiLayerStacked
+	uiLayerLeader
+)
+
+type uiLayerEntry struct {
+	kind uiLayer
+	name string
 }
 
 type triggerAutoRefreshMsg struct{}
@@ -69,22 +87,105 @@ func (m *Model) Init() tea.Cmd {
 	return tea.Batch(tea.SetWindowTitle(fmt.Sprintf("jjui - %s", m.context.Location)), m.revisions.Init(), m.scheduleAutoRefresh())
 }
 
+func (m *Model) pushLayer(kind uiLayer, name string) {
+	m.removeLayer(kind)
+	m.layerStack = append(m.layerStack, uiLayerEntry{kind: kind, name: name})
+}
+
+func (m *Model) updateLayer(kind uiLayer, name string) {
+	for i := range m.layerStack {
+		if m.layerStack[i].kind == kind {
+			m.layerStack[i].name = name
+			return
+		}
+	}
+	m.layerStack = append(m.layerStack, uiLayerEntry{kind: kind, name: name})
+}
+
+func (m *Model) removeLayer(kind uiLayer) {
+	if len(m.layerStack) == 0 {
+		return
+	}
+	for i := len(m.layerStack) - 1; i >= 0; i-- {
+		if m.layerStack[i].kind == kind {
+			m.layerStack = append(m.layerStack[:i], m.layerStack[i+1:]...)
+		}
+	}
+}
+
+func (m *Model) topLayer() (uiLayerEntry, bool) {
+	if len(m.layerStack) == 0 {
+		return uiLayerEntry{}, false
+	}
+	return m.layerStack[len(m.layerStack)-1], true
+}
+
+func (m *Model) syncRevisionOpLayer() {
+	if m.revisions == nil {
+		return
+	}
+	if m.revisions.InNormalMode() {
+		if m.activeRevisionOp != "" {
+			m.activeRevisionOp = ""
+			m.removeLayer(uiLayerRevisionOp)
+		}
+		return
+	}
+	name := m.revisions.CurrentOperation().Name()
+	if m.activeRevisionOp == "" {
+		m.activeRevisionOp = name
+		m.updateLayer(uiLayerRevisionOp, name)
+		return
+	}
+	if m.activeRevisionOp != name {
+		m.activeRevisionOp = name
+		m.updateLayer(uiLayerRevisionOp, name)
+	}
+}
+
+func (m *Model) setPreviewVisible(visible bool) tea.Cmd {
+	wasVisible := m.previewModel.Visible()
+	m.previewModel.SetVisible(visible)
+	if visible && !wasVisible {
+		m.pushLayer(uiLayerPreview, "")
+	}
+	if !visible && wasVisible {
+		m.removeLayer(uiLayerPreview)
+	}
+	return common.SelectionChanged(m.context.SelectedItem)
+}
+
+func (m *Model) handleCancelLayer() tea.Cmd {
+	top, ok := m.topLayer()
+	if !ok {
+		return nil
+	}
+	if top.kind != uiLayerPreview {
+		return nil
+	}
+	return m.setPreviewVisible(false)
+}
+
 func (m *Model) handleFocusInputMessage(msg tea.Msg) (tea.Cmd, bool) {
 	if _, ok := msg.(common.CloseViewMsg); ok {
 		if m.leader != nil {
 			m.leader = nil
+			m.removeLayer(uiLayerLeader)
 			return nil, true
 		}
 		if m.diff != nil {
 			m.diff = nil
+			m.removeLayer(uiLayerDiff)
 			return nil, true
 		}
 		if m.stacked != nil {
 			m.stacked = nil
+			m.removeLayer(uiLayerStacked)
 			return nil, true
 		}
 		if m.oplog != nil {
 			m.oplog = nil
+			m.removeLayer(uiLayerOpLog)
 			return common.SelectionChanged(m.context.SelectedItem), true
 		}
 		return nil, false
@@ -171,6 +272,7 @@ func (m *Model) shouldStartSequenceOverlay(msg tea.KeyMsg) bool {
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
+	defer m.syncRevisionOpLayer()
 	if cmd, handled := m.handleFocusInputMessage(msg); handled {
 		return cmd
 	}
@@ -216,14 +318,19 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 
-		// if status is expanded, pressing `esc` should always close expanded
-		// status first
-		if key.Matches(msg, m.keyMap.Cancel) && m.status.StatusExpanded() {
-			m.status.ToggleStatusExpand()
-			return nil
-		}
-		if key.Matches(msg, m.keyMap.Cancel) && (m.state == common.Error || m.stacked != nil || m.flash.Any()) {
-			return m.handleIntent(intents.Cancel{})
+		if key.Matches(msg, m.keyMap.Cancel) {
+			// if status is expanded, pressing `esc` should always close expanded
+			// status first
+			if m.status.StatusExpanded() {
+				m.status.ToggleStatusExpand()
+				return nil
+			}
+			if cmd := m.handleCancelLayer(); cmd != nil {
+				return cmd
+			}
+			if m.state == common.Error || m.stacked != nil || m.flash.Any() {
+				return m.handleIntent(intents.Cancel{})
+			}
 		}
 
 		switch {
@@ -300,6 +407,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		cmds = append(cmds, common.Refresh)
 	case common.ShowDiffMsg:
 		m.diff = diff.New(string(msg))
+		m.pushLayer(uiLayerDiff, "diff")
 		return m.diff.Init()
 	case common.UpdateRevisionsSuccessMsg:
 		m.state = common.Ready
@@ -338,18 +446,21 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	case common.ShowChooseMsg:
 		model := choose.NewWithTitle(msg.Options, msg.Title)
 		m.stacked = model
+		m.pushLayer(uiLayerStacked, "choose")
 		return m.stacked.Init()
 	case choose.SelectedMsg, choose.CancelledMsg:
 		m.stacked = nil
+		m.removeLayer(uiLayerStacked)
 	case common.ShowInputMsg:
 		model := input.NewWithTitle(msg.Title, msg.Prompt)
 		m.stacked = model
+		m.pushLayer(uiLayerStacked, "input")
 		return m.stacked.Init()
 	case input.SelectedMsg, input.CancelledMsg:
 		m.stacked = nil
+		m.removeLayer(uiLayerStacked)
 	case common.ShowPreview:
-		m.previewModel.SetVisible(bool(msg))
-		cmds = append(cmds, common.SelectionChanged(m.context.SelectedItem))
+		cmds = append(cmds, m.setPreviewVisible(bool(msg)))
 		return tea.Batch(cmds...)
 	case common.TogglePasswordMsg:
 		if m.password != nil {
@@ -572,6 +683,7 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 			m.state = common.Ready
 		case m.stacked != nil:
 			m.stacked = nil
+			m.removeLayer(uiLayerStacked)
 		case m.flash.Any():
 			m.flash.DeleteOldest()
 		}
@@ -582,6 +694,7 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		}
 		model := undo.NewModel(m.context)
 		m.stacked = model
+		m.pushLayer(uiLayerStacked, "undo")
 		return m.stacked.Init()
 	case intents.Redo:
 		if !m.revisions.InNormalMode() {
@@ -589,6 +702,7 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		}
 		model := redo.NewModel(m.context)
 		m.stacked = model
+		m.pushLayer(uiLayerStacked, "redo")
 		return m.stacked.Init()
 	case intents.ExecJJ:
 		if !m.revisions.InNormalMode() {
@@ -617,6 +731,7 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		changeIds := m.revisions.GetCommitIds()
 		model := bookmarks.NewModel(m.context, m.revisions.SelectedRevision(), changeIds)
 		m.stacked = model
+		m.pushLayer(uiLayerStacked, "bookmarks")
 		return m.stacked.Init()
 	case intents.OpenGit:
 		if !m.revisions.InNormalMode() {
@@ -624,12 +739,14 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		}
 		model := git.NewModel(m.context, m.revisions.SelectedRevisions())
 		m.stacked = model
+		m.pushLayer(uiLayerStacked, "git")
 		return m.stacked.Init()
 	case intents.OpLogOpen:
 		if !m.revisions.InNormalMode() {
 			return nil
 		}
 		m.oplog = oplog.New(m.context)
+		m.pushLayer(uiLayerOpLog, "oplog")
 		return m.oplog.Init()
 	case intents.Edit:
 		if !m.revisions.InNormalMode() {
@@ -637,16 +754,14 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		}
 		return m.revsetModel.Update(intent)
 	case intents.PreviewToggle:
-		m.previewModel.ToggleVisible()
-		return common.SelectionChanged(m.context.SelectedItem)
+		return m.setPreviewVisible(!m.previewModel.Visible())
 	case intents.PreviewToggleBottom:
 		previewPos := m.previewModel.AtBottom()
 		m.previewModel.SetPosition(false, !previewPos)
 		if m.previewModel.Visible() {
 			return nil
 		}
-		m.previewModel.ToggleVisible()
-		return common.SelectionChanged(m.context.SelectedItem)
+		return m.setPreviewVisible(true)
 	case intents.PreviewExpand:
 		if !m.previewModel.Visible() {
 			return nil
@@ -698,9 +813,11 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	case intents.OpenCustomCommands:
 		model := customcommands.NewModel(m.context)
 		m.stacked = model
+		m.pushLayer(uiLayerStacked, "custom commands")
 		return m.stacked.Init()
 	case intents.OpenLeader:
 		m.leader = leader.New(m.context)
+		m.pushLayer(uiLayerLeader, "leader")
 		return leader.InitCmd
 	default:
 		return nil
@@ -779,6 +896,9 @@ func NewUI(c *context.MainContext) *Model {
 		flash:        flashView,
 	}
 	ui.initSplit()
+	if previewModel.Visible() {
+		ui.pushLayer(uiLayerPreview, "")
+	}
 	return ui
 }
 
