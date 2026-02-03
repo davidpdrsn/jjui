@@ -27,6 +27,7 @@ const (
 	// given to jj commands.
 	CheckedCommitIdsPlaceholder = "$checked_commit_ids"
 	JJUIPrefix                  = "_PREFIX:"
+	AiImplementProgram          = "jj-ai-implement"
 )
 
 type CommandArgs []string
@@ -120,6 +121,28 @@ func Abandon(revision SelectedRevisions, ignoreImmutable bool) CommandArgs {
 	args = append(args, revision.AsArgs()...)
 	if ignoreImmutable {
 		args = append(args, "--ignore-immutable")
+	}
+	return args
+}
+
+func AiImplementAdd(revision string, useNix bool, plan bool) CommandArgs {
+	args := []string{"add"}
+	if useNix {
+		args = append(args, "--nix")
+	}
+	if plan {
+		args = append(args, "--plan")
+	}
+	if revision != "" {
+		args = append(args, revision)
+	}
+	return args
+}
+
+func AiImplementRemove(revision string) CommandArgs {
+	args := []string{"remove"}
+	if revision != "" {
+		args = append(args, revision)
 	}
 	return args
 }
