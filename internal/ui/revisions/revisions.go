@@ -438,6 +438,8 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				return m.handleIntent(intents.StartAiImplement{})
 			case key.Matches(msg, m.keymap.Workspace):
 				return m.handleIntent(intents.StartWorkspace{})
+			case key.Matches(msg, m.keymap.SelectAiAncestors):
+				return m.handleIntent(intents.SelectAiAncestors{})
 			case key.Matches(msg, m.keymap.Integrate):
 				return m.handleIntent(intents.StartIntegrate{})
 			case key.Matches(msg, m.keymap.Restack):
@@ -493,6 +495,8 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return m.startIntegrate(intent)
 	case intents.StartRestack:
 		return m.startRestack()
+	case intents.SelectAiAncestors:
+		return m.selectAiAncestors()
 	case intents.StartNew:
 		return m.startNew(intent)
 	case intents.CommitWorkingCopy:
@@ -793,6 +797,39 @@ func (m *Model) startWorkspace(intent intents.StartWorkspace) tea.Cmd {
 
 func (m *Model) startRestack() tea.Cmd {
 	return m.context.RunCommand(jj.Restack(), common.Refresh)
+}
+
+func (m *Model) selectAiAncestors() tea.Cmd {
+	output, err := m.context.RunCommandImmediate(jj.GetIdsFromRevset("::@ & description(glob:\"ai:*\")"))
+	if err != nil {
+		return func() tea.Msg {
+			return common.CommandCompletedMsg{Err: err}
+		}
+	}
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	selectedIds := make(map[string]struct{}, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		selectedIds[line] = struct{}{}
+	}
+	if len(selectedIds) == 0 {
+		return nil
+	}
+	for _, row := range m.rows {
+		commit := row.Commit
+		if commit == nil {
+			continue
+		}
+		if _, ok := selectedIds[commit.GetChangeId()]; !ok {
+			continue
+		}
+		item := appContext.SelectedRevision{ChangeId: commit.GetChangeId(), CommitId: commit.CommitId}
+		m.context.AddCheckedItem(item)
+	}
+	return m.updateSelection()
 }
 
 func (m *Model) navigate(intent intents.Navigate) tea.Cmd {

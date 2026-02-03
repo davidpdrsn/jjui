@@ -143,6 +143,10 @@ type StartWorkspace struct {
 
 func (StartWorkspace) isIntent() {}
 
+type SelectAiAncestors struct{}
+
+func (SelectAiAncestors) isIntent() {}
+
 type StartRestack struct{}
 
 func (StartRestack) isIntent() {}
