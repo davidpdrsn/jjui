@@ -131,6 +131,10 @@ type StartIntegrate struct {
 
 func (StartIntegrate) isIntent() {}
 
+type StartRestack struct{}
+
+func (StartRestack) isIntent() {}
+
 type AbandonToggleSelect struct{}
 
 func (AbandonToggleSelect) isIntent() {}

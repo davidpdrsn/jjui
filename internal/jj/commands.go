@@ -133,6 +133,10 @@ func Integrate(revisions SelectedRevisions) CommandArgs {
 	return append(args, revset)
 }
 
+func Restack() CommandArgs {
+	return []string{"restack"}
+}
+
 func Diff(revision string, fileName string, extraArgs ...string) CommandArgs {
 	args := []string{"diff", "-r", revision, "--color", "always", "--ignore-working-copy"}
 	if fileName != "" {

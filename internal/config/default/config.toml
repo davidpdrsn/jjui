@@ -17,6 +17,7 @@ limit = 0
   refresh = ["ctrl+r"]
   abandon = ["a"]
   integrate = ["i"]
+  restack = ["t"]
   diff = ["d"]
   quit = ["q"]
   expand_status = ["?"]
