@@ -427,6 +427,8 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				return m.handleIntent(intents.StartAbandon{})
 			case key.Matches(msg, m.keymap.Integrate):
 				return m.handleIntent(intents.StartIntegrate{})
+			case key.Matches(msg, m.keymap.Restack):
+				return m.handleIntent(intents.StartRestack{})
 			case key.Matches(msg, m.keymap.Bookmark.Set):
 				return m.handleIntent(intents.BookmarksSet{})
 			case key.Matches(msg, m.keymap.Split, m.keymap.SplitParallel):
@@ -472,6 +474,8 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return m.startAbandon(intent)
 	case intents.StartIntegrate:
 		return m.startIntegrate(intent)
+	case intents.StartRestack:
+		return m.startRestack()
 	case intents.StartNew:
 		return m.startNew(intent)
 	case intents.CommitWorkingCopy:
@@ -744,6 +748,10 @@ func (m *Model) startIntegrate(intent intents.StartIntegrate) tea.Cmd {
 	}
 	m.op = integrate.NewOperation(m.context, selected)
 	return m.op.Init()
+}
+
+func (m *Model) startRestack() tea.Cmd {
+	return m.context.RunCommand(jj.Restack(), common.Refresh)
 }
 
 func (m *Model) navigate(intent intents.Navigate) tea.Cmd {

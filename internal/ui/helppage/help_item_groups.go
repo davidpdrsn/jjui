@@ -117,6 +117,7 @@ func (h *Model) buildLeftGroups() menuColumn {
 			h.newBindingItem(h.keyMap.Split),
 			h.newBindingItem(h.keyMap.Abandon),
 			h.newBindingItem(h.keyMap.Integrate),
+			h.newBindingItem(h.keyMap.Restack),
 			h.newBindingItem(h.keyMap.Absorb),
 			h.newBindingItem(h.keyMap.Undo),
 			h.newBindingItem(h.keyMap.Redo),
