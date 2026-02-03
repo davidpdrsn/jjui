@@ -16,6 +16,7 @@ limit = 0
   commit = ["c"]
   refresh = ["ctrl+r"]
   abandon = ["a"]
+  ai_implement = ["I"]
   integrate = ["i"]
   restack = ["t"]
   diff = ["d"]

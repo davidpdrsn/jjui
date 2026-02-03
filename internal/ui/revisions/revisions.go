@@ -15,6 +15,7 @@ import (
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations/ace_jump"
+	"github.com/idursun/jjui/internal/ui/operations/ai_implement"
 	"github.com/idursun/jjui/internal/ui/operations/duplicate"
 	"github.com/idursun/jjui/internal/ui/operations/revert"
 	"github.com/idursun/jjui/internal/ui/operations/set_parents"
@@ -168,6 +169,13 @@ func (m *Model) InNormalMode() bool {
 		return true
 	}
 	return false
+}
+
+func (m *Model) OperationName() string {
+	if op, ok := m.op.(operations.Operation); ok {
+		return op.Name()
+	}
+	return ""
 }
 
 func (m *Model) ShortHelp() []key.Binding {
@@ -425,6 +433,8 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				return m.handleIntent(intents.StartAbsorb{})
 			case key.Matches(msg, m.keymap.Abandon):
 				return m.handleIntent(intents.StartAbandon{})
+			case key.Matches(msg, m.keymap.AiImplement):
+				return m.handleIntent(intents.StartAiImplement{})
 			case key.Matches(msg, m.keymap.Integrate):
 				return m.handleIntent(intents.StartIntegrate{})
 			case key.Matches(msg, m.keymap.Restack):
@@ -472,6 +482,8 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return m.startAbsorb(intent)
 	case intents.StartAbandon:
 		return m.startAbandon(intent)
+	case intents.StartAiImplement:
+		return m.startAiImplement(intent)
 	case intents.StartIntegrate:
 		return m.startIntegrate(intent)
 	case intents.StartRestack:
@@ -735,6 +747,18 @@ func (m *Model) startAbandon(intent intents.StartAbandon) tea.Cmd {
 		return nil
 	}
 	m.op = abandon.NewOperation(m.context, selected)
+	return m.op.Init()
+}
+
+func (m *Model) startAiImplement(intent intents.StartAiImplement) tea.Cmd {
+	selected := intent.Selected
+	if len(selected.Revisions) == 0 {
+		selected = m.SelectedRevisions()
+	}
+	if len(selected.Revisions) == 0 {
+		return nil
+	}
+	m.op = ai_implement.NewOperation(m.context, selected)
 	return m.op.Init()
 }
 

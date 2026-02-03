@@ -91,6 +91,16 @@ func (t *CommandRunner) RunInteractiveCommand(args []string, continuation tea.Cm
 	return t.RunCommand(args, continuation)
 }
 
+func (t *CommandRunner) RunProgramCommand(program string, args []string, continuations ...tea.Cmd) tea.Cmd {
+	fullArgs := append([]string{program}, args...)
+	return t.RunCommand(fullArgs, continuations...)
+}
+
+func (t *CommandRunner) RunProgramInteractiveCommand(program string, args []string, continuation tea.Cmd) tea.Cmd {
+	fullArgs := append([]string{program}, args...)
+	return t.RunCommand(fullArgs, continuation)
+}
+
 func (t *CommandRunner) Expect(args []string) *ExpectedCommand {
 	subCommand := args[0]
 	if _, ok := t.expectations[subCommand]; !ok {

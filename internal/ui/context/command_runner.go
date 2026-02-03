@@ -24,6 +24,8 @@ type CommandRunner interface {
 	RunCommand(args []string, continuations ...tea.Cmd) tea.Cmd
 	RunCommandWithInput(args []string, input string, continuations ...tea.Cmd) tea.Cmd
 	RunInteractiveCommand(args []string, continuation tea.Cmd) tea.Cmd
+	RunProgramCommand(program string, args []string, continuations ...tea.Cmd) tea.Cmd
+	RunProgramInteractiveCommand(program string, args []string, continuation tea.Cmd) tea.Cmd
 }
 
 type MainCommandRunner struct {
@@ -125,6 +127,49 @@ func (a *MainCommandRunner) runCommandWithInput(args []string, input *string, co
 	)
 }
 
+func (a *MainCommandRunner) runProgramWithInput(program string, args []string, input *string, continuations []tea.Cmd) tea.Cmd {
+	commands := make([]tea.Cmd, 0)
+	commands = append(commands, func() tea.Msg {
+		c := exec.Command(program, args...)
+		c.Dir = a.Location
+
+		if input != nil {
+			stdin, err := c.StdinPipe()
+			if err != nil {
+				return common.CommandCompletedMsg{
+					Err: err,
+				}
+			}
+			go func() {
+				defer stdin.Close()
+				io.WriteString(stdin, *input)
+			}()
+		}
+
+		var output bytes.Buffer
+		c.Stderr = &output
+		if err := c.Start(); err != nil {
+			return common.CommandCompletedMsg{
+				Err: err,
+			}
+		}
+
+		err := c.Wait()
+		if err != nil && output.Len() > 0 {
+			err = errors.New(output.String())
+		}
+		return common.CommandCompletedMsg{
+			Output: output.String(),
+			Err:    err,
+		}
+	})
+	commands = append(commands, continuations...)
+	return tea.Batch(
+		common.CommandRunningProgram(program, args),
+		tea.Sequence(commands...),
+	)
+}
+
 func (a *MainCommandRunner) RunCommandWithInput(args []string, input string, continuations ...tea.Cmd) tea.Cmd {
 	return a.runCommandWithInput(args, &input, continuations)
 }
@@ -140,6 +185,28 @@ func (a *MainCommandRunner) RunInteractiveCommand(args []string, continuation te
 	c.Dir = a.Location
 	return tea.Batch(
 		common.CommandRunning(args),
+		tea.ExecProcess(c, func(err error) tea.Msg {
+			if err != nil {
+				return common.CommandCompletedMsg{Err: errors.New(errBuffer.String())}
+			}
+			return tea.Batch(continuation, func() tea.Msg {
+				return common.CommandCompletedMsg{Err: nil}
+			})()
+		}),
+	)
+}
+
+func (a *MainCommandRunner) RunProgramCommand(program string, args []string, continuations ...tea.Cmd) tea.Cmd {
+	return a.runProgramWithInput(program, args, nil, continuations)
+}
+
+func (a *MainCommandRunner) RunProgramInteractiveCommand(program string, args []string, continuation tea.Cmd) tea.Cmd {
+	c := exec.Command(program, args...)
+	errBuffer := &bytes.Buffer{}
+	c.Stderr = errBuffer
+	c.Dir = a.Location
+	return tea.Batch(
+		common.CommandRunningProgram(program, args),
 		tea.ExecProcess(c, func(err error) tea.Msg {
 			if err != nil {
 				return common.CommandCompletedMsg{Err: errors.New(errBuffer.String())}

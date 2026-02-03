@@ -28,6 +28,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		Undo:              key.NewBinding(key.WithKeys(m.Undo...), key.WithHelp(JoinKeys(m.Undo), "undo")),
 		Redo:              key.NewBinding(key.WithKeys(m.Redo...), key.WithHelp(JoinKeys(m.Redo), "redo")),
 		Abandon:           key.NewBinding(key.WithKeys(m.Abandon...), key.WithHelp(JoinKeys(m.Abandon), "abandon")),
+		AiImplement:       key.NewBinding(key.WithKeys(m.AiImplement...), key.WithHelp(JoinKeys(m.AiImplement), "ai implement")),
 		Integrate:         key.NewBinding(key.WithKeys(m.Integrate...), key.WithHelp(JoinKeys(m.Integrate), "integrate")),
 		Restack:           key.NewBinding(key.WithKeys(m.Restack...), key.WithHelp(JoinKeys(m.Restack), "restack")),
 		Edit:              key.NewBinding(key.WithKeys(m.Edit...), key.WithHelp(JoinKeys(m.Edit), "edit")),
@@ -214,6 +215,7 @@ type KeyMappings[T any] struct {
 	Revset            T                         `toml:"revset"`
 	ExecJJ            T                         `toml:"exec_jj"`
 	ExecShell         T                         `toml:"exec_shell"`
+	AiImplement       T                         `toml:"ai_implement"`
 	AceJump           T                         `toml:"ace_jump"`
 	QuickSearch       T                         `toml:"quick_search"`
 	QuickSearchNext   T                         `toml:"quick_search_cycle"`
