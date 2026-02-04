@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -236,7 +237,12 @@ func (o *Operation) applyWorkspace(name string) tea.Cmd {
 			return common.CommandCompletedMsg{Err: err}
 		}
 	}
-	return o.context.RunCommand(jj.WorkspaceAdd(workspacePath, revision, name), common.Refresh, common.Close)
+	return o.context.RunCommand(
+		jj.WorkspaceAdd(workspacePath, revision, name),
+		o.copyWorkspacePathCmd(workspacePath),
+		common.Refresh,
+		common.Close,
+	)
 }
 
 func (o *Operation) applyForget() tea.Cmd {
@@ -429,6 +435,18 @@ func (o *Operation) toggleSelectedRevision(commit *jj.Commit) {
 		return
 	}
 	o.selectedRevisions = jj.NewSelectedRevisions(append(o.selectedRevisions.Revisions, commit)...)
+}
+
+func (o *Operation) copyWorkspacePathCmd(path string) tea.Cmd {
+	return func() tea.Msg {
+		if strings.TrimSpace(path) == "" {
+			return common.CommandCompletedMsg{Err: errors.New("workspace path missing")}
+		}
+		if err := clipboard.WriteAll(path); err != nil {
+			return common.CommandCompletedMsg{Err: err}
+		}
+		return common.CommandCompletedMsg{Err: nil}
+	}
 }
 
 func workspacePath(location string, name string) (string, error) {
