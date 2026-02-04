@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,6 +21,8 @@ import (
 	"github.com/idursun/jjui/internal/ui/operations"
 	"github.com/idursun/jjui/internal/ui/render"
 )
+
+const refreshDelay = 500 * time.Millisecond
 
 var (
 	_ operations.Operation = (*Operation)(nil)
@@ -164,13 +167,25 @@ func (a *Operation) Name() string {
 	return "ai implement"
 }
 
+func delayedRefresh() tea.Cmd {
+	return tea.Tick(refreshDelay, func(time.Time) tea.Msg {
+		return common.Refresh()
+	})
+}
+
 func (a *Operation) applyCommands() tea.Cmd {
 	var commands []tea.Cmd
 	for idx, revision := range a.selectedRevisions.Revisions {
 		isLast := idx == len(a.selectedRevisions.Revisions)-1
 		var continuations []tea.Cmd
+		if !a.remove && !a.plan {
+			continuations = append(continuations, delayedRefresh())
+		}
 		if isLast {
-			continuations = append(continuations, common.Refresh, common.Close)
+			if a.remove || a.plan {
+				continuations = append(continuations, delayedRefresh())
+			}
+			continuations = append(continuations, common.Close)
 		}
 		cmd := a.commandForRevision(revision, continuations...)
 		if cmd != nil {
