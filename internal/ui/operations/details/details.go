@@ -49,7 +49,7 @@ type Operation struct {
 }
 
 func (s *Operation) IsOverlay() bool {
-	return true
+	return false
 }
 
 func (s *Operation) IsFocused() bool {
