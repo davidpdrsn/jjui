@@ -387,6 +387,9 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if op, ok := m.op.(*details.Operation); ok && op.IsFocused() {
+			return op.Update(msg)
+		}
 		switch {
 		case key.Matches(msg, m.keymap.Up, m.keymap.ScrollUp):
 			return m.handleIntent(intents.Navigate{Delta: -1, IsPage: key.Matches(msg, m.keymap.ScrollUp)})
