@@ -15,6 +15,7 @@ import (
 	"github.com/idursun/jjui/internal/config"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/ui/common"
+	"github.com/idursun/jjui/internal/ui/confirmation"
 	"github.com/idursun/jjui/internal/ui/context"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
@@ -23,6 +24,11 @@ import (
 )
 
 const refreshDelay = 500 * time.Millisecond
+
+const (
+	modelCodex = "codex"
+	modelOpus  = "opus"
+)
 
 var (
 	_ operations.Operation = (*Operation)(nil)
@@ -41,6 +47,8 @@ type Operation struct {
 	inTmux            bool
 	removeKey         key.Binding
 	planKey           key.Binding
+	confirmation      *confirmation.Model
+	model             string
 }
 
 type styles struct {
@@ -51,6 +59,14 @@ func (a *Operation) IsFocused() bool {
 	return true
 }
 
+func (a *Operation) IsEditing() bool {
+	return a.confirmation != nil
+}
+
+func (a *Operation) IsOverlay() bool {
+	return a.confirmation != nil
+}
+
 func (a *Operation) Init() tea.Cmd {
 	return nil
 }
@@ -58,14 +74,31 @@ func (a *Operation) Init() tea.Cmd {
 func (a *Operation) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case intents.Intent:
+		if a.confirmation != nil {
+			return a.confirmation.Update(msg)
+		}
 		return a.handleIntent(msg)
 	case tea.KeyMsg:
+		if a.confirmation != nil {
+			return a.confirmation.Update(msg)
+		}
 		return a.HandleKey(msg)
+	case confirmation.CloseMsg:
+		a.confirmation = nil
+		return nil
+	case confirmation.SelectOptionMsg:
+		if a.confirmation != nil {
+			return a.confirmation.Update(msg)
+		}
 	}
 	return nil
 }
 
-func (a *Operation) ViewRect(_ *render.DisplayContext, _ layout.Box) {}
+func (a *Operation) ViewRect(dl *render.DisplayContext, box layout.Box) {
+	if a.confirmation != nil {
+		a.confirmation.ViewRect(dl, box)
+	}
+}
 
 func (a *Operation) HandleKey(msg tea.KeyMsg) tea.Cmd {
 	switch {
@@ -94,6 +127,9 @@ func (a *Operation) handleIntent(intent intents.Intent) tea.Cmd {
 	case intents.Apply:
 		if len(a.selectedRevisions.Revisions) == 0 {
 			return nil
+		}
+		if !a.remove {
+			return a.startModelPicker()
 		}
 		return a.applyCommands()
 	case intents.AiImplementToggleSelect:
@@ -203,7 +239,7 @@ func (a *Operation) commandForRevision(commit *jj.Commit, continuations ...tea.C
 		args := jj.AiImplementRemove(commit.GetChangeId())
 		return a.context.RunProgramCommand(jj.AiImplementProgram, args, continuations...)
 	}
-	args := jj.AiImplementAdd(commit.GetChangeId(), a.useNix, a.plan)
+	args := jj.AiImplementAdd(commit.GetChangeId(), a.useNix, a.plan, a.model)
 	if a.inTmux {
 		if a.plan {
 			name := tmuxWindowName(a.context.Location, commit.GetChangeId())
@@ -256,6 +292,33 @@ func (a *Operation) toggleSelectedRevision(commit *jj.Commit) {
 	a.selectedRevisions = jj.NewSelectedRevisions(append(a.selectedRevisions.Revisions, commit)...)
 }
 
+func (a *Operation) startModelPicker() tea.Cmd {
+	return func() tea.Msg {
+		a.confirmation = confirmation.New(
+			[]string{"Select model"},
+			confirmation.WithStylePrefix("revisions"),
+			confirmation.WithOption("Codex",
+				func() tea.Msg {
+					a.model = modelCodex
+					a.confirmation = nil
+					return a.applyCommands()()
+				},
+				key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "codex"))),
+			confirmation.WithOption("Opus",
+				func() tea.Msg {
+					a.model = modelOpus
+					a.confirmation = nil
+					return a.applyCommands()()
+				},
+				key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "opus"))),
+			confirmation.WithOption("Cancel",
+				confirmation.Close,
+				key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel"))),
+		)
+		return nil
+	}
+}
+
 func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRevisions) *Operation {
 	styles := styles{
 		sourceMarker: common.DefaultPalette.Get("ai_implement source_marker"),
@@ -269,6 +332,7 @@ func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRev
 		planKey:           key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "plan")),
 		useNix:            flakeExists(context.Location),
 		inTmux:            os.Getenv("TMUX") != "",
+		model:             modelCodex,
 	}
 }
 

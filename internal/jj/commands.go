@@ -125,13 +125,16 @@ func Abandon(revision SelectedRevisions, ignoreImmutable bool) CommandArgs {
 	return args
 }
 
-func AiImplementAdd(revision string, useNix bool, plan bool) CommandArgs {
+func AiImplementAdd(revision string, useNix bool, plan bool, model string) CommandArgs {
 	args := []string{"add"}
 	if useNix {
 		args = append(args, "--nix")
 	}
 	if plan {
 		args = append(args, "--plan")
+	}
+	if model != "" {
+		args = append(args, "--model", model)
 	}
 	if revision != "" {
 		args = append(args, revision)
