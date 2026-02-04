@@ -46,7 +46,8 @@ type Operation struct {
 }
 
 type styles struct {
-	sourceMarker lipgloss.Style
+	workspaceMarker lipgloss.Style
+	forgetMarker    lipgloss.Style
 }
 
 type deleteRequest struct {
@@ -159,10 +160,12 @@ func (o *Operation) Render(commit *jj.Commit, pos operations.RenderPosition) str
 		return ""
 	}
 	marker := "<< workspace >>"
+	style := o.styles.workspaceMarker
 	if o.forget {
 		marker = "<< forget >>"
+		style = o.styles.forgetMarker
 	}
-	return o.styles.sourceMarker.Render(marker)
+	return style.Render(marker)
 }
 
 func (o *Operation) RenderToDisplayContext(_ *render.DisplayContext, _ *jj.Commit, _ operations.RenderPosition, _ cellbuf.Rectangle, _ cellbuf.Position) int {
@@ -473,7 +476,8 @@ func (o *Operation) deleteDecisionCmd(shouldDelete bool) tea.Cmd {
 
 func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRevisions) *Operation {
 	styles := styles{
-		sourceMarker: common.DefaultPalette.Get("workspace source_marker"),
+		workspaceMarker: common.DefaultPalette.Get("absorb source_marker"),
+		forgetMarker:    common.DefaultPalette.Get("workspace source_marker"),
 	}
 	return &Operation{
 		context:           context,
