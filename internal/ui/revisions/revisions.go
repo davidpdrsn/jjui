@@ -518,8 +518,7 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		changeId := commit.GetChangeId()
 		item := appContext.SelectedRevision{ChangeId: changeId, CommitId: commit.CommitId}
 		m.context.ToggleCheckedItem(item)
-		m.jumpToParent(jj.NewSelectedRevisions(commit))
-		return nil
+		return m.navigate(intents.Navigate{Delta: 1})
 	case intents.Navigate:
 		return m.navigate(intent)
 	case intents.StartDescribe:
