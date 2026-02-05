@@ -109,6 +109,7 @@ func (h *Model) buildLeftGroups() menuColumn {
 			h.newBindingItem(h.keyMap.QuickSearchCycle),
 			h.newBindingItem(h.keyMap.FileSearch.Toggle),
 			h.newBindingItem(h.keyMap.New),
+			h.newBindingItem(h.keyMap.NewNoEdit),
 			h.newBindingItem(h.keyMap.Commit),
 			h.newBindingItem(h.keyMap.Describe),
 			h.newBindingItem(h.keyMap.Edit),

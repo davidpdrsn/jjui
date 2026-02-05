@@ -426,6 +426,8 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 				return m.handleIntent(intents.StartInlineDescribe{})
 			case key.Matches(msg, m.keymap.New):
 				return m.handleIntent(intents.StartNew{})
+			case key.Matches(msg, m.keymap.NewNoEdit):
+				return m.handleIntent(intents.StartNewNoEdit{})
 			case key.Matches(msg, m.keymap.Commit):
 				return m.handleIntent(intents.CommitWorkingCopy{})
 			case key.Matches(msg, m.keymap.Edit, m.keymap.ForceEdit):
@@ -502,6 +504,8 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return m.selectAiAncestors()
 	case intents.StartNew:
 		return m.startNew(intent)
+	case intents.StartNewNoEdit:
+		return m.startNewNoEdit(intent)
 	case intents.CommitWorkingCopy:
 		return m.commitWorkingCopy()
 	case intents.StartEdit:
@@ -709,7 +713,30 @@ func (m *Model) startNew(intent intents.StartNew) tea.Cmd {
 	if len(selected.Revisions) == 0 {
 		selected = m.SelectedRevisions()
 	}
-	return m.context.RunCommand(jj.New(selected), common.RefreshAndSelect("@"))
+	return m.context.RunCommand(jj.New(selected, false), common.RefreshAndSelect("@"))
+}
+
+func (m *Model) startNewNoEdit(intent intents.StartNewNoEdit) tea.Cmd {
+	selected := intent.Selected
+	if len(selected.Revisions) == 0 {
+		selected = m.SelectedRevisions()
+	}
+	return m.context.RunCommand(jj.New(selected, true), func() tea.Msg {
+		base := selected.Last()
+		if base == "" {
+			base = "@"
+		}
+		revset := fmt.Sprintf("latest(children(%s), 1)", base)
+		output, err := m.context.RunCommandImmediate(jj.GetFullIdsFromRevset(revset))
+		if err != nil {
+			return common.CommandCompletedMsg{Output: string(output), Err: err}
+		}
+		changeID := strings.TrimSpace(string(output))
+		if changeID == "" {
+			return common.RefreshAndSelect("@")()
+		}
+		return common.RefreshAndSelect(changeID)()
+	})
 }
 
 func (m *Model) commitWorkingCopy() tea.Cmd {
