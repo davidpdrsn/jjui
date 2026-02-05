@@ -61,8 +61,11 @@ func Log(revset string, limit int, jjTemplate string) CommandArgs {
 	return args
 }
 
-func New(revisions SelectedRevisions) CommandArgs {
+func New(revisions SelectedRevisions, noEdit bool) CommandArgs {
 	args := []string{"new"}
+	if noEdit {
+		args = append(args, "--no-edit")
+	}
 	args = append(args, revisions.AsArgs()...)
 	return args
 }
@@ -501,6 +504,10 @@ func FilesInRevision(revision *Commit) CommandArgs {
 
 func GetIdsFromRevset(revset string) CommandArgs {
 	return []string{"log", "-r", revset, "--color", "never", "--no-graph", "--quiet", "--ignore-working-copy", "--template", "change_id.shortest() ++ '\n'"}
+}
+
+func GetFullIdsFromRevset(revset string) CommandArgs {
+	return []string{"log", "-r", revset, "--color", "never", "--no-graph", "--quiet", "--ignore-working-copy", "--template", "change_id ++ '\n'"}
 }
 
 func EscapeFileName(fileName string) string {

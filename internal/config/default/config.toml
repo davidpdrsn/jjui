@@ -13,6 +13,7 @@ limit = 0
   cancel = ["esc"]
   toggle_select = [" "]
   new = ["n"]
+  new_no_edit = ["N"]
   commit = ["c"]
   refresh = ["ctrl+r"]
   abandon = ["a"]

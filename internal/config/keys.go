@@ -20,6 +20,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		Cancel:            key.NewBinding(key.WithKeys(m.Cancel...), key.WithHelp(JoinKeys(m.Cancel), "cancel")),
 		ToggleSelect:      key.NewBinding(key.WithKeys(m.ToggleSelect...), key.WithHelp(JoinKeys(m.ToggleSelect), "toggle selection")),
 		New:               key.NewBinding(key.WithKeys(m.New...), key.WithHelp(JoinKeys(m.New), "new")),
+		NewNoEdit:         key.NewBinding(key.WithKeys(m.NewNoEdit...), key.WithHelp(JoinKeys(m.NewNoEdit), "new (no edit)")),
 		Commit:            key.NewBinding(key.WithKeys(m.Commit...), key.WithHelp(JoinKeys(m.Commit), "commit")),
 		Refresh:           key.NewBinding(key.WithKeys(m.Refresh...), key.WithHelp(JoinKeys(m.Refresh), "refresh")),
 		Quit:              key.NewBinding(key.WithKeys(m.Quit...), key.WithHelp(JoinKeys(m.Quit), "quit")),
@@ -197,6 +198,7 @@ type KeyMappings[T any] struct {
 	ForceApply        T                         `toml:"force_apply"`
 	ToggleSelect      T                         `toml:"toggle_select"`
 	New               T                         `toml:"new"`
+	NewNoEdit         T                         `toml:"new_no_edit"`
 	Commit            T                         `toml:"commit"`
 	Refresh           T                         `toml:"refresh"`
 	Abandon           T                         `toml:"abandon"`
