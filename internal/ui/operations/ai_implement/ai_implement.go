@@ -26,8 +26,10 @@ import (
 const refreshDelay = 500 * time.Millisecond
 
 const (
-	modelCodex = "codex"
-	modelOpus  = "opus"
+	modelCodex52 = "codex-5.2"
+	modelCodex53 = "codex-5.3"
+	modelOpus45  = "opus-4.5"
+	modelOpus46  = "opus-4.6"
 )
 
 var (
@@ -297,20 +299,34 @@ func (a *Operation) startModelPicker() tea.Cmd {
 		a.confirmation = confirmation.New(
 			[]string{"Select model"},
 			confirmation.WithStylePrefix("revisions"),
-			confirmation.WithOption("Codex",
+			confirmation.WithOption("Codex 5.2",
 				func() tea.Msg {
-					a.model = modelCodex
+					a.model = modelCodex52
 					a.confirmation = nil
 					return a.applyCommands()()
 				},
-				key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "codex"))),
-			confirmation.WithOption("Opus",
+				key.NewBinding(key.WithKeys("1"), key.WithHelp("1", "codex 5.2"))),
+			confirmation.WithOption("Codex 5.3",
 				func() tea.Msg {
-					a.model = modelOpus
+					a.model = modelCodex53
 					a.confirmation = nil
 					return a.applyCommands()()
 				},
-				key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "opus"))),
+				key.NewBinding(key.WithKeys("2"), key.WithHelp("2", "codex 5.3"))),
+			confirmation.WithOption("Opus 4.5",
+				func() tea.Msg {
+					a.model = modelOpus45
+					a.confirmation = nil
+					return a.applyCommands()()
+				},
+				key.NewBinding(key.WithKeys("3"), key.WithHelp("3", "opus 4.5"))),
+			confirmation.WithOption("Opus 4.6",
+				func() tea.Msg {
+					a.model = modelOpus46
+					a.confirmation = nil
+					return a.applyCommands()()
+				},
+				key.NewBinding(key.WithKeys("4"), key.WithHelp("4", "opus 4.6"))),
 			confirmation.WithOption("Cancel",
 				confirmation.Close,
 				key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel"))),
@@ -332,7 +348,7 @@ func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRev
 		planKey:           key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "plan")),
 		useNix:            flakeExists(context.Location),
 		inTmux:            os.Getenv("TMUX") != "",
-		model:             modelCodex,
+		model:             modelCodex53,
 	}
 }
 
