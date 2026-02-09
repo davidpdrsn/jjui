@@ -36,6 +36,7 @@ func (n *Default) ShortHelp() []key.Binding {
 		n.keyMap.Split,
 		n.keyMap.Diff,
 		n.keyMap.AceJump,
+		n.keyMap.CopyCommitSHA,
 		n.keyMap.Preview.Mode,
 		n.keyMap.Revset,
 		n.keyMap.ToggleSelect,

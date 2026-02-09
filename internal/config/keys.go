@@ -57,6 +57,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		SetParents:      key.NewBinding(key.WithKeys(m.SetParents...), key.WithHelp(JoinKeys(m.SetParents), "set parents")),
 		ExecJJ:          key.NewBinding(key.WithKeys(m.ExecJJ...), key.WithHelp(JoinKeys(m.ExecJJ), "interactive jj")),
 		ExecShell:       key.NewBinding(key.WithKeys(m.ExecShell...), key.WithHelp(JoinKeys(m.ExecShell), "interactive shell command")),
+		CopyCommitSHA:    key.NewBinding(key.WithKeys(m.CopyCommitSHA...), key.WithHelp(JoinKeys(m.CopyCommitSHA), "copy commit sha")),
 		Revert: revertModeKeys[key.Binding]{
 			Mode:   key.NewBinding(key.WithKeys(m.Revert.Mode...), key.WithHelp(JoinKeys(m.Revert.Mode), "revert")),
 			Target: key.NewBinding(key.WithKeys(m.Revert.Target...), key.WithHelp(JoinKeys(m.Revert.Target), "target")),
@@ -226,6 +227,7 @@ type KeyMappings[T any] struct {
 	QuickSearch       T                         `toml:"quick_search"`
 	QuickSearchNext   T                         `toml:"quick_search_cycle"`
 	QuickSearchPrev   T                         `toml:"quick_search_cycle_back"`
+	CopyCommitSHA     T                         `toml:"copy_commit_sha"`
 	CustomCommands    T                         `toml:"custom_commands"`
 	Leader            T                         `toml:"leader"`
 	Suspend           T                         `toml:"suspend"`

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/atotto/clipboard"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/internal/ui/layout"
 	"github.com/idursun/jjui/internal/ui/operations/ace_jump"
@@ -45,9 +46,10 @@ import (
 )
 
 var (
-	_ common.Focusable      = (*Model)(nil)
-	_ common.Editable       = (*Model)(nil)
-	_ common.ImmediateModel = (*Model)(nil)
+	_              common.Focusable      = (*Model)(nil)
+	_              common.Editable       = (*Model)(nil)
+	_              common.ImmediateModel = (*Model)(nil)
+	writeClipboard                       = clipboard.WriteAll
 )
 
 type Model struct {
@@ -420,6 +422,8 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 					key.Matches(msg, m.keymap.QuickSearchPrev)):
 				reverse := key.Matches(msg, m.keymap.QuickSearchPrev)
 				return m.handleIntent(intents.QuickSearchCycle{Reverse: reverse})
+			case key.Matches(msg, m.keymap.CopyCommitSHA):
+				return m.handleIntent(intents.CopyCommitSHA{})
 			case key.Matches(msg, m.keymap.Details.Mode):
 				return m.handleIntent(intents.OpenDetails{})
 			case key.Matches(msg, m.keymap.InlineDescribe.Mode):
@@ -554,6 +558,8 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	case intents.RevisionsQuickSearchClear:
 		m.quickSearch = ""
 		return nil
+	case intents.CopyCommitSHA:
+		return m.copySelectedCommitSHA()
 	case intents.StartAceJump:
 		parentOp := m.op
 		// Create ace jump with parent operation
@@ -564,6 +570,38 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		return op.Init()
 	}
 	return nil
+}
+
+func (m *Model) copySelectedCommitSHA() tea.Cmd {
+	revision := m.SelectedRevision()
+	if revision == nil || strings.TrimSpace(revision.CommitId) == "" {
+		return func() tea.Msg {
+			return intents.AddMessage{Err: errors.New("no revision selected")}
+		}
+	}
+
+	fullSHA, err := m.context.RunCommandImmediate(jj.GetFullCommitIDFromRevision(revision.CommitId))
+	if err != nil {
+		return func() tea.Msg {
+			return intents.AddMessage{Err: err}
+		}
+	}
+
+	sha := strings.TrimSpace(string(fullSHA))
+	if sha == "" {
+		return func() tea.Msg {
+			return intents.AddMessage{Err: errors.New("could not resolve commit sha")}
+		}
+	}
+	if len(sha) > 8 {
+		sha = sha[:8]
+	}
+	return func() tea.Msg {
+		if err := writeClipboard(sha); err != nil {
+			return intents.AddMessage{Err: err}
+		}
+		return intents.AddMessage{Text: "Copied commit SHA: " + sha}
+	}
 }
 
 func (m *Model) startBookmarkSet() tea.Cmd {

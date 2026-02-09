@@ -1,8 +1,10 @@
 package revisions
 
 import (
+	"errors"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
@@ -31,7 +33,7 @@ Parent commit      : nyqzpsmt 8b1e95e3 change third file
 
 var rows = []parser.Row{
 	{
-		Commit: &jj.Commit{ChangeId: "a", CommitId: "8"},
+		Commit: &jj.Commit{ChangeId: "a", CommitId: "123456789abc"},
 		Lines: []*parser.GraphRowLine{
 			{
 				Gutter:   parser.GraphGutter{Segments: []*screen.Segment{{Text: "|"}}},
@@ -97,4 +99,66 @@ func TestModel_OperationIntents(t *testing.T) {
 			assert.Contains(t, rendered, tc.expected)
 		})
 	}
+}
+
+func TestModel_CopyCommitSHA(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GetFullCommitIDFromRevision("123456789abc")).SetOutput([]byte("123456789abcdef0123456789abcdef01234567"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := New(ctx)
+	model.updateGraphRows(rows, "a")
+
+	oldWriteClipboard := writeClipboard
+	t.Cleanup(func() {
+		writeClipboard = oldWriteClipboard
+	})
+
+	var copied string
+	writeClipboard = func(value string) error {
+		copied = value
+		return nil
+	}
+
+	var flashMsg intents.AddMessage
+	test.SimulateModel(model, test.Type("C"), func(msg tea.Msg) {
+		if got, ok := msg.(intents.AddMessage); ok {
+			flashMsg = got
+		}
+	})
+
+	assert.Equal(t, "12345678", copied)
+	assert.Equal(t, "Copied commit SHA: 12345678", flashMsg.Text)
+	assert.NoError(t, flashMsg.Err)
+}
+
+func TestModel_CopyCommitSHA_ShowsErrorOnClipboardFailure(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	commandRunner.Expect(jj.GetFullCommitIDFromRevision("123456789abc")).SetOutput([]byte("123456789abcdef0123456789abcdef01234567"))
+	defer commandRunner.Verify()
+
+	ctx := test.NewTestContext(commandRunner)
+	model := New(ctx)
+	model.updateGraphRows(rows, "a")
+
+	oldWriteClipboard := writeClipboard
+	t.Cleanup(func() {
+		writeClipboard = oldWriteClipboard
+	})
+
+	copyErr := errors.New("clipboard unavailable")
+	writeClipboard = func(string) error {
+		return copyErr
+	}
+
+	var flashMsg intents.AddMessage
+	test.SimulateModel(model, test.Type("C"), func(msg tea.Msg) {
+		if got, ok := msg.(intents.AddMessage); ok {
+			flashMsg = got
+		}
+	})
+
+	assert.Equal(t, "", flashMsg.Text)
+	assert.Equal(t, copyErr, flashMsg.Err)
 }
