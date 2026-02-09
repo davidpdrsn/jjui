@@ -331,6 +331,9 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			if m.state == common.Error || m.stacked != nil || m.flash.Any() {
 				return m.handleIntent(intents.Cancel{})
 			}
+			if m.isSafeToQuit() {
+				return m.handleIntent(intents.Quit{})
+			}
 		}
 
 		switch {
