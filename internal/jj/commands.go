@@ -510,6 +510,10 @@ func GetFullIdsFromRevset(revset string) CommandArgs {
 	return []string{"log", "-r", revset, "--color", "never", "--no-graph", "--quiet", "--ignore-working-copy", "--template", "change_id ++ '\n'"}
 }
 
+func GetFullCommitIDFromRevision(revision string) CommandArgs {
+	return []string{"log", "-r", revision, "-n", "1", "--color", "never", "--no-graph", "--quiet", "--ignore-working-copy", "--template", "commit_id ++ '\n'"}
+}
+
 func EscapeFileName(fileName string) string {
 	// Escape backslashes and quotes in the file name for shell compatibility
 	if strings.Contains(fileName, "\\") {

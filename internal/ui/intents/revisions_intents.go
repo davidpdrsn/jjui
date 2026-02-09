@@ -69,6 +69,10 @@ type RevisionsQuickSearchClear struct{}
 
 func (RevisionsQuickSearchClear) isIntent() {}
 
+type CopyCommitSHA struct{}
+
+func (CopyCommitSHA) isIntent() {}
+
 type NavigationTarget int
 
 const (

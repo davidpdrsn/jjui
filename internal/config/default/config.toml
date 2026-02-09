@@ -41,6 +41,7 @@ limit = 0
   quick_search = ["/"]
   quick_search_cycle = ["'"]
   quick_search_cycle_back = ["\""]
+  copy_commit_sha = ["C"]
   custom_commands = ["x"]
   leader = ["\\"]
   suspend = ["ctrl+z"]
