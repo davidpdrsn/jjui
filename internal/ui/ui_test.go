@@ -16,6 +16,35 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func Test_Update_EscapeQuitsInRootRevisionsMode(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+
+	model := NewUI(ctx)
+	var msgs []tea.Msg
+	test.SimulateModel(model, test.Press(tea.KeyEsc), func(msg tea.Msg) {
+		msgs = append(msgs, msg)
+	})
+
+	assert.Contains(t, msgs, tea.QuitMsg{})
+}
+
+func Test_Update_EscapeClosesPreviewBeforeQuit(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+
+	model := NewUI(ctx)
+	model.setPreviewVisible(true)
+
+	var msgs []tea.Msg
+	test.SimulateModel(model, test.Press(tea.KeyEsc), func(msg tea.Msg) {
+		msgs = append(msgs, msg)
+	})
+
+	assert.NotContains(t, msgs, tea.QuitMsg{})
+	assert.False(t, model.previewModel.Visible())
+}
+
 func Test_Update_RevsetWithEmptyInputKeepsDefaultRevset(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()
