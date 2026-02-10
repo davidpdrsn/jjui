@@ -60,17 +60,10 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	case common.CommandCompletedMsg:
 		id := m.add(msg.Output, msg.Err)
-		if msg.Err == nil {
-			expiringMessageTimeout := config.GetExpiringFlashMessageTimeout(config.Current)
-			if expiringMessageTimeout > time.Duration(0) {
-				return tea.Tick(expiringMessageTimeout, func(t time.Time) tea.Msg {
-					return expireMessageMsg{id: id}
-				})
-			}
-		}
-		return nil
+		return m.scheduleExpire(id)
 	case common.UpdateRevisionsFailedMsg:
-		m.add(msg.Output, msg.Err)
+		id := m.add(msg.Output, msg.Err)
+		return m.scheduleExpire(id)
 	}
 	return nil
 }
@@ -79,13 +72,8 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	switch intent := intent.(type) {
 	case intents.AddMessage:
 		id := m.add(intent.Text, intent.Err)
-		if intent.Err == nil && !intent.Sticky && id != 0 {
-			expiringMessageTimeout := config.GetExpiringFlashMessageTimeout(config.Current)
-			if expiringMessageTimeout > time.Duration(0) {
-				return tea.Tick(expiringMessageTimeout, func(t time.Time) tea.Msg {
-					return expireMessageMsg{id: id}
-				})
-			}
+		if !intent.Sticky {
+			return m.scheduleExpire(id)
 		}
 		return nil
 	case intents.DismissOldest:
@@ -167,6 +155,21 @@ func (m *Model) DeleteOldest() {
 func (m *Model) nextId() uint64 {
 	m.currentId = m.currentId + 1
 	return m.currentId
+}
+
+func (m *Model) scheduleExpire(id uint64) tea.Cmd {
+	if id == 0 {
+		return nil
+	}
+
+	expiringMessageTimeout := config.GetExpiringFlashMessageTimeout(config.Current)
+	if expiringMessageTimeout <= time.Duration(0) {
+		return nil
+	}
+
+	return tea.Tick(expiringMessageTimeout, func(time.Time) tea.Msg {
+		return expireMessageMsg{id: id}
+	})
 }
 
 func New(context *context.MainContext) *Model {

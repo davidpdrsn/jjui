@@ -35,13 +35,13 @@ func TestUpdate_AddsSuccessMessageAndSchedulesExpiry(t *testing.T) {
 	}
 }
 
-func TestUpdate_AddsErrorMessageWithoutExpiry(t *testing.T) {
+func TestUpdate_AddsErrorMessageAndSchedulesExpiry(t *testing.T) {
 	m := New(test.NewTestContext(test.NewTestCommandRunner(t)))
 	m.errorStyle = lipgloss.NewStyle()
 
 	cmd := m.Update(common.CommandCompletedMsg{Output: "", Err: errors.New("boom")})
 
-	assert.Nil(t, cmd)
+	assert.NotNil(t, cmd)
 	if assert.Len(t, m.messages, 1) {
 		assert.EqualError(t, m.messages[0].error, "boom")
 		assert.Equal(t, "", m.messages[0].text)
