@@ -79,10 +79,12 @@ func (h *Model) setDefaultMenu() {
 }
 
 func (h *Model) buildLeftGroups() menuColumn {
-	jumpKeys := fmt.Sprintf("%s/%s/%s",
+	jumpKeys := fmt.Sprintf("%s/%s/%s/%s/%s",
 		h.keyMap.JumpToParent.Help().Key,
 		h.keyMap.JumpToChildren.Help().Key,
 		h.keyMap.JumpToWorkingCopy.Help().Key,
+		h.keyMap.JumpToTop.Help().Key,
+		h.keyMap.JumpToBottom.Help().Key,
 	)
 
 	return menuColumn{
@@ -102,7 +104,7 @@ func (h *Model) buildLeftGroups() menuColumn {
 		},
 		itemGroup{
 			h.newModeItem(nil, "Revisions"),
-			h.newKeyItem(jumpKeys, "jump to parent/child/working-copy"),
+			h.newKeyItem(jumpKeys, "jump to parent/child/working-copy/top/bottom"),
 			h.newBindingItem(h.keyMap.ToggleSelect),
 			h.newBindingItem(h.keyMap.AceJump),
 			h.newBindingItem(h.keyMap.QuickSearch),

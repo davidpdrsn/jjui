@@ -80,6 +80,8 @@ const (
 	TargetParent
 	TargetChild
 	TargetWorkingCopy
+	TargetTop
+	TargetBottom
 )
 
 type Navigate struct {

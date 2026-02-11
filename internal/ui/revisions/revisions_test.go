@@ -208,3 +208,20 @@ func TestIncrementLargestAncestorsRange_HandlesNestedArgs(t *testing.T) {
 		assert.Equal(t, `present(@) | ancestors(description(glob:"foo,bar"), 3) | ancestors(trunk(), 70)`, updated)
 	}
 }
+
+func TestModel_NavigateTargetBottom_DoesNotExpandRevset(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	ctx.CurrentRevset = "present(@) | ancestors(trunk(), 20)"
+
+	model := New(ctx)
+	model.updateGraphRows(rows, "a")
+
+	cmd := model.navigate(intents.Navigate{Target: intents.TargetBottom})
+	assert.Equal(t, len(rows)-1, model.Cursor())
+
+	if cmd != nil {
+		msg := cmd()
+		_, isRevsetUpdate := msg.(common.UpdateRevSetMsg)
+		assert.False(t, isRevsetUpdate)
+	}
+}

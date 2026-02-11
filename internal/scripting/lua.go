@@ -600,6 +600,10 @@ func parseNavigateTarget(val string) intents.NavigationTarget {
 		return intents.TargetChild
 	case "working", "working_copy", "work":
 		return intents.TargetWorkingCopy
+	case "top", "first":
+		return intents.TargetTop
+	case "bottom", "last":
+		return intents.TargetBottom
 	default:
 		return intents.TargetNone
 	}

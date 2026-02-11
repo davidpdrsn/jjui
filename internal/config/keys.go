@@ -15,6 +15,8 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		JumpToParent:      key.NewBinding(key.WithKeys(m.JumpToParent...), key.WithHelp(JoinKeys(m.JumpToParent), "jump to parent")),
 		JumpToChildren:    key.NewBinding(key.WithKeys(m.JumpToChildren...), key.WithHelp(JoinKeys(m.JumpToChildren), "jump to children")),
 		JumpToWorkingCopy: key.NewBinding(key.WithKeys(m.JumpToWorkingCopy...), key.WithHelp(JoinKeys(m.JumpToWorkingCopy), "jump to working copy")),
+		JumpToTop:         key.NewBinding(key.WithKeys(m.JumpToTop...), key.WithHelp(JoinKeys(m.JumpToTop), "jump to top")),
+		JumpToBottom:      key.NewBinding(key.WithKeys(m.JumpToBottom...), key.WithHelp(JoinKeys(m.JumpToBottom), "jump to bottom")),
 		Apply:             key.NewBinding(key.WithKeys(m.Apply...), key.WithHelp(JoinKeys(m.Apply), "apply")),
 		ForceApply:        key.NewBinding(key.WithKeys(m.ForceApply...), key.WithHelp(JoinKeys(m.ForceApply), "force apply")),
 		Cancel:            key.NewBinding(key.WithKeys(m.Cancel...), key.WithHelp(JoinKeys(m.Cancel), "cancel")),
@@ -194,6 +196,8 @@ type KeyMappings[T any] struct {
 	JumpToParent      T                         `toml:"jump_to_parent"`
 	JumpToChildren    T                         `toml:"jump_to_children"`
 	JumpToWorkingCopy T                         `toml:"jump_to_working_copy"`
+	JumpToTop         T                         `toml:"jump_to_top"`
+	JumpToBottom      T                         `toml:"jump_to_bottom"`
 	Apply             T                         `toml:"apply"`
 	Cancel            T                         `toml:"cancel"`
 	ForceApply        T                         `toml:"force_apply"`
