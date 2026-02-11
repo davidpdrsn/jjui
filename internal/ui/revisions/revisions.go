@@ -9,6 +9,7 @@ import (
 	"log"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 
@@ -51,6 +52,8 @@ var (
 	_              common.ImmediateModel = (*Model)(nil)
 	writeClipboard                       = clipboard.WriteAll
 )
+
+const revsetAutoExpandStep = 50
 
 type Model struct {
 	rows                   []parser.Row
@@ -144,6 +147,13 @@ func (m *Model) Scroll(delta int) tea.Cmd {
 		lastRowIndex := m.displayContextRenderer.GetLastRowIndex()
 		if lastRowIndex >= len(m.rows)-1 {
 			return m.requestMoreRows(m.tag.Load())
+		}
+	}
+
+	if delta > 0 {
+		lastRowIndex := m.displayContextRenderer.GetLastRowIndex()
+		if lastRowIndex >= len(m.rows)-1 {
+			return m.maybeExpandRevsetFromBottom()
 		}
 	}
 	return nil
@@ -974,6 +984,11 @@ func (m *Model) navigate(intent intents.Navigate) tea.Cmd {
 			if allowStream && m.hasMore {
 				return m.requestMoreRows(m.tag.Load())
 			}
+			if allowStream {
+				if cmd := m.maybeExpandRevsetFromBottom(); cmd != nil {
+					return cmd
+				}
+			}
 			newCursor = totalItems - 1
 		}
 	} else {
@@ -1213,6 +1228,236 @@ func (m *Model) requestMoreRows(tag uint64) tea.Cmd {
 	m.requestInFlight = true
 	batch := m.streamer.RequestMore()
 	return m.Update(appendRowsBatchMsg{batch.Rows, batch.HasMore, tag})
+}
+
+func (m *Model) maybeExpandRevsetFromBottom() tea.Cmd {
+	if m.isLoading || len(m.rows) == 0 {
+		return nil
+	}
+
+	nextRevset := expandRevsetForMoreHistory(m.context.CurrentRevset, m.oldestVisibleChangeID(), revsetAutoExpandStep)
+	if nextRevset == "" || nextRevset == m.context.CurrentRevset {
+		return nil
+	}
+
+	return common.UpdateRevSet(nextRevset)
+}
+
+func (m *Model) oldestVisibleChangeID() string {
+	for i := len(m.rows) - 1; i >= 0; i-- {
+		if m.rows[i].Commit == nil {
+			continue
+		}
+
+		changeID := strings.TrimSpace(m.rows[i].Commit.GetChangeId())
+		if changeID == "" {
+			continue
+		}
+
+		return changeID
+	}
+
+	return ""
+}
+
+func expandRevsetForMoreHistory(revset string, fallbackAncestorBase string, step int) string {
+	revset = strings.TrimSpace(revset)
+	if revset == "" || step <= 0 {
+		return ""
+	}
+
+	if expanded, ok := incrementLargestAncestorsRange(revset, step); ok {
+		return expanded
+	}
+
+	fallbackAncestorBase = strings.TrimSpace(fallbackAncestorBase)
+	if fallbackAncestorBase == "" {
+		return ""
+	}
+
+	return fmt.Sprintf("(%s) | ancestors(%s, %d)", revset, fallbackAncestorBase, step)
+}
+
+type ancestorsRange struct {
+	intStart int
+	intEnd   int
+	value    int
+}
+
+func incrementLargestAncestorsRange(revset string, step int) (string, bool) {
+	ranges := findAncestorsRanges(revset)
+	if len(ranges) == 0 {
+		return "", false
+	}
+
+	target := ranges[0]
+	for _, candidate := range ranges[1:] {
+		if candidate.value > target.value {
+			target = candidate
+		}
+	}
+
+	nextValue := target.value + step
+	updated := revset[:target.intStart] + strconv.Itoa(nextValue) + revset[target.intEnd:]
+	return updated, true
+}
+
+func findAncestorsRanges(revset string) []ancestorsRange {
+	const token = "ancestors("
+
+	ranges := make([]ancestorsRange, 0)
+	searchFrom := 0
+	for {
+		idx := strings.Index(revset[searchFrom:], token)
+		if idx == -1 {
+			break
+		}
+
+		start := searchFrom + idx
+		openParen := start + len("ancestors")
+		closeParen := findMatchingParen(revset, openParen)
+		if closeParen == -1 {
+			searchFrom = start + len(token)
+			continue
+		}
+
+		args := revset[openParen+1 : closeParen]
+		secondArgStart, secondArgEnd, ok := secondArgRange(args)
+		if ok {
+			trimmedStart, trimmedEnd := trimRange(args, secondArgStart, secondArgEnd)
+			if trimmedStart < trimmedEnd {
+				if n, err := strconv.Atoi(args[trimmedStart:trimmedEnd]); err == nil {
+					ranges = append(ranges, ancestorsRange{
+						intStart: openParen + 1 + trimmedStart,
+						intEnd:   openParen + 1 + trimmedEnd,
+						value:    n,
+					})
+				}
+			}
+		}
+
+		searchFrom = closeParen + 1
+	}
+
+	return ranges
+}
+
+func findMatchingParen(s string, openParen int) int {
+	if openParen < 0 || openParen >= len(s) || s[openParen] != '(' {
+		return -1
+	}
+
+	depth := 0
+	inQuote := byte(0)
+	escaped := false
+
+	for i := openParen; i < len(s); i++ {
+		ch := s[i]
+
+		if inQuote != 0 {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+				continue
+			}
+			if ch == inQuote {
+				inQuote = 0
+			}
+			continue
+		}
+
+		if ch == '\'' || ch == '"' {
+			inQuote = ch
+			continue
+		}
+
+		switch ch {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return i
+			}
+		}
+	}
+
+	return -1
+}
+
+func secondArgRange(args string) (int, int, bool) {
+	depth := 0
+	inQuote := byte(0)
+	escaped := false
+	firstComma := -1
+
+	for i := 0; i < len(args); i++ {
+		ch := args[i]
+
+		if inQuote != 0 {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+				continue
+			}
+			if ch == inQuote {
+				inQuote = 0
+			}
+			continue
+		}
+
+		if ch == '\'' || ch == '"' {
+			inQuote = ch
+			continue
+		}
+
+		switch ch {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case ',':
+			if depth == 0 {
+				if firstComma != -1 {
+					return 0, 0, false
+				}
+				firstComma = i
+			}
+		}
+	}
+
+	if firstComma == -1 {
+		return 0, 0, false
+	}
+
+	return firstComma + 1, len(args), true
+}
+
+func trimRange(s string, start int, end int) (int, int) {
+	for start < end {
+		if s[start] != ' ' && s[start] != '\t' && s[start] != '\n' && s[start] != '\r' {
+			break
+		}
+		start++
+	}
+
+	for start < end {
+		last := end - 1
+		if s[last] != ' ' && s[last] != '\t' && s[last] != '\n' && s[last] != '\r' {
+			break
+		}
+		end--
+	}
+
+	return start, end
 }
 
 func (m *Model) selectRevision(revision string) int {
