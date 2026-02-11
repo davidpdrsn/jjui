@@ -413,6 +413,10 @@ func (m *Model) internalUpdate(msg tea.Msg) tea.Cmd {
 			return m.handleIntent(intents.Navigate{Target: intents.TargetChild})
 		case key.Matches(msg, m.keymap.JumpToWorkingCopy):
 			return m.handleIntent(intents.Navigate{Target: intents.TargetWorkingCopy})
+		case key.Matches(msg, m.keymap.JumpToTop):
+			return m.handleIntent(intents.Navigate{Target: intents.TargetTop})
+		case key.Matches(msg, m.keymap.JumpToBottom):
+			return m.handleIntent(intents.Navigate{Target: intents.TargetBottom})
 		default:
 			if op, ok := m.op.(common.Focusable); ok && op.IsFocused() {
 				return m.op.Update(msg)
@@ -939,6 +943,14 @@ func (m *Model) navigate(intent intents.Navigate) tea.Cmd {
 	switch intent.Target {
 	case intents.TargetParent:
 		m.jumpToParent(m.SelectedRevisions())
+		m.ensureCursorView = ensureView
+		return m.updateSelection()
+	case intents.TargetTop:
+		m.SetCursor(0)
+		m.ensureCursorView = ensureView
+		return m.updateSelection()
+	case intents.TargetBottom:
+		m.SetCursor(len(m.rows) - 1)
 		m.ensureCursorView = ensureView
 		return m.updateSelection()
 	case intents.TargetWorkingCopy:
