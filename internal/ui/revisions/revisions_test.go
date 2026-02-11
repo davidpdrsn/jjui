@@ -8,6 +8,7 @@ import (
 	"github.com/idursun/jjui/internal/jj"
 	"github.com/idursun/jjui/internal/parser"
 	"github.com/idursun/jjui/internal/screen"
+	"github.com/idursun/jjui/internal/ui/common"
 	"github.com/idursun/jjui/internal/ui/intents"
 	"github.com/idursun/jjui/test"
 	"github.com/stretchr/testify/assert"
@@ -161,4 +162,49 @@ func TestModel_CopyCommitSHA_ShowsErrorOnClipboardFailure(t *testing.T) {
 
 	assert.Equal(t, "", flashMsg.Text)
 	assert.Equal(t, copyErr, flashMsg.Err)
+}
+
+func TestModel_NavigateBottom_ExpandsLargestAncestorsRange(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	ctx.CurrentRevset = "present(@) | ancestors(immutable_heads().., 2) | present(trunk()) | ancestors(trunk(), 20)"
+
+	model := New(ctx)
+	model.updateGraphRows(rows, "b")
+	model.SetCursor(len(rows) - 1)
+
+	cmd := model.navigate(intents.Navigate{Delta: 1})
+	if assert.NotNil(t, cmd) {
+		msg := cmd()
+		updateMsg, ok := msg.(common.UpdateRevSetMsg)
+		if assert.True(t, ok) {
+			assert.Equal(t, "present(@) | ancestors(immutable_heads().., 2) | present(trunk()) | ancestors(trunk(), 70)", string(updateMsg))
+		}
+	}
+}
+
+func TestModel_NavigateBottom_FallsBackToAppendingAncestors(t *testing.T) {
+	ctx := test.NewTestContext(test.NewTestCommandRunner(t))
+	ctx.CurrentRevset = "present(@)"
+
+	model := New(ctx)
+	model.updateGraphRows(rows, "b")
+	model.SetCursor(len(rows) - 1)
+
+	cmd := model.navigate(intents.Navigate{Delta: 1})
+	if assert.NotNil(t, cmd) {
+		msg := cmd()
+		updateMsg, ok := msg.(common.UpdateRevSetMsg)
+		if assert.True(t, ok) {
+			assert.Equal(t, "(present(@)) | ancestors(b, 50)", string(updateMsg))
+		}
+	}
+}
+
+func TestIncrementLargestAncestorsRange_HandlesNestedArgs(t *testing.T) {
+	revset := `present(@) | ancestors(description(glob:"foo,bar"), 3) | ancestors(trunk(), 20)`
+
+	updated, ok := incrementLargestAncestorsRange(revset, 50)
+	if assert.True(t, ok) {
+		assert.Equal(t, `present(@) | ancestors(description(glob:"foo,bar"), 3) | ancestors(trunk(), 70)`, updated)
+	}
 }
