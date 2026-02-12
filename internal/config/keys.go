@@ -108,6 +108,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		},
 		Bookmark: bookmarkModeKeys[key.Binding]{
 			Mode:    key.NewBinding(key.WithKeys(m.Bookmark.Mode...), key.WithHelp(JoinKeys(m.Bookmark.Mode), "bookmarks")),
+			List:    key.NewBinding(key.WithKeys(m.Bookmark.List...), key.WithHelp(JoinKeys(m.Bookmark.List), "list bookmarks")),
 			Set:     key.NewBinding(key.WithKeys(m.Bookmark.Set...), key.WithHelp(JoinKeys(m.Bookmark.Set), "set bookmark")),
 			Delete:  key.NewBinding(key.WithKeys(m.Bookmark.Delete...), key.WithHelp(JoinKeys(m.Bookmark.Delete), "delete")),
 			Move:    key.NewBinding(key.WithKeys(m.Bookmark.Move...), key.WithHelp(JoinKeys(m.Bookmark.Move), "move")),
@@ -253,6 +254,7 @@ type KeyMappings[T any] struct {
 
 type bookmarkModeKeys[T any] struct {
 	Mode    T `toml:"mode"`
+	List    T `toml:"list"`
 	Set     T `toml:"set"`
 	Delete  T `toml:"delete"`
 	Move    T `toml:"move"`

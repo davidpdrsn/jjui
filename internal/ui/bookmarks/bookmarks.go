@@ -21,7 +21,8 @@ import (
 )
 
 type updateItemsMsg struct {
-	items []item
+	items     []item
+	listItems []item
 }
 
 // SelectRemoteMsg is sent when a remote is clicked
@@ -80,6 +81,7 @@ type Model struct {
 	remoteNames         []string
 	selectedRemoteIdx   int
 	allItems            []item
+	listItems           []item
 	filteredItems       []item
 	cursor              int
 	listRenderer        *render.ListRenderer
@@ -108,6 +110,7 @@ func (m *Model) ShortHelp() []key.Binding {
 		m.keymap.Bookmark.Forget,
 		m.keymap.Bookmark.Track,
 		m.keymap.Bookmark.Untrack,
+		m.keymap.Bookmark.List,
 		m.filterKey,
 		key.NewBinding(
 			key.WithKeys("tab/shift+tab"),
@@ -128,14 +131,17 @@ const (
 	trackCommand
 	untrackCommand
 	forgetCommand
+	listCommand
 )
 
 type item struct {
-	name     string
-	priority commandType
-	dist     int
-	args     []string
-	key      string
+	name         string
+	description  string
+	bookmarkName string
+	priority     commandType
+	dist         int
+	args         []string
+	key          string
 }
 
 func (i item) ShortCut() string {
@@ -151,6 +157,9 @@ func (i item) Title() string {
 }
 
 func (i item) Description() string {
+	if i.description != "" {
+		return i.description
+	}
 	desc := strings.Join(i.args, " ")
 	return desc
 }
@@ -269,6 +278,7 @@ func (m *Model) loadAll() tea.Msg {
 		bookmarks := jj.ParseBookmarkListOutput(string(output))
 
 		items := make([]item, 0)
+		listItems := buildListItems(bookmarks)
 		for _, b := range bookmarks {
 			distance := m.distance(b.CommitId)
 			if b.IsDeletable() {
@@ -316,7 +326,7 @@ func (m *Model) loadAll() tea.Msg {
 				}
 			}
 		}
-		return updateItemsMsg{items: items}
+		return updateItemsMsg{items: items, listItems: listItems}
 	}
 }
 
@@ -387,9 +397,18 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, m.keymap.Cancel):
 			return m.handleIntent(intents.Cancel{})
 		case key.Matches(msg, m.keymap.Apply):
+			if m.isListMode() {
+				return nil
+			}
 			return m.handleIntent(intents.Apply{})
 		case key.Matches(msg, m.keymap.ExpandStatus):
 			return func() tea.Msg { return intents.ExpandStatusToggle{} }
+		case key.Matches(msg, m.keymap.Edit) && m.isListMode():
+			return m.handleIntent(intents.BookmarksEditSelected{})
+		case key.Matches(msg, m.keymap.New) && m.isListMode():
+			return m.handleIntent(intents.BookmarksNewSelected{})
+		case key.Matches(msg, m.keymap.Bookmark.List) && m.categoryFilter != string(intents.BookmarksFilterList):
+			return m.handleIntent(intents.BookmarksFilter{Kind: intents.BookmarksFilterList})
 		case key.Matches(msg, m.keymap.Bookmark.Move) && m.categoryFilter != "move":
 			return m.handleIntent(intents.BookmarksFilter{Kind: intents.BookmarksFilterMove})
 		case key.Matches(msg, m.keymap.Bookmark.Delete) && m.categoryFilter != "delete":
@@ -417,6 +436,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		}
 	case updateItemsMsg:
 		m.allItems = append(m.allItems, msg.items...)
+		m.listItems = append(m.listItems, msg.listItems...)
 		slices.SortFunc(m.allItems, itemSorter)
 		return m.updateMenuForRemote()
 	}
@@ -438,6 +458,18 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		}
 	case intents.BookmarksCycleRemotes:
 		return m.cycleRemotes(msg.Delta)
+	case intents.BookmarksEditSelected:
+		selected, ok := m.selectedItem()
+		if !ok || selected.bookmarkName == "" {
+			return nil
+		}
+		return m.context.RunCommand(jj.Edit(selected.bookmarkName, false), common.Refresh, common.Close)
+	case intents.BookmarksNewSelected:
+		selected, ok := m.selectedItem()
+		if !ok || selected.bookmarkName == "" {
+			return nil
+		}
+		return m.context.RunCommand(jj.Args("new", selected.bookmarkName), common.Refresh, common.Close)
 	case intents.BookmarksApplyShortcut:
 		if m.categoryFilter == "" {
 			return nil
@@ -676,6 +708,9 @@ func (m *Model) resetAllFilters() {
 
 func (m *Model) applyFilters(resetCursor bool) {
 	items := m.filterItemsByRemote(m.allItems)
+	if m.isListMode() {
+		items = m.listItems
+	}
 
 	if m.categoryFilter != "" {
 		filtered := make([]item, 0, len(items))
@@ -707,6 +742,9 @@ func (m *Model) applyFilters(resetCursor bool) {
 }
 
 func (m *Model) categoryFilterMatch(item item, filter string) bool {
+	if filter == string(intents.BookmarksFilterList) {
+		return item.priority == listCommand
+	}
 	if !strings.HasPrefix(item.FilterValue(), filter) {
 		return false
 	}
@@ -762,7 +800,7 @@ func (m *Model) renderFilterView(dl *render.DisplayContext, box layout.Box) {
 	}
 
 	remote := "all remotes"
-	if len(m.remoteNames) > 0 && m.selectedRemoteIdx < len(m.remoteNames) {
+	if !m.isListMode() && len(m.remoteNames) > 0 && m.selectedRemoteIdx < len(m.remoteNames) {
 		remote = m.remoteNames[m.selectedRemoteIdx]
 	}
 
@@ -891,4 +929,50 @@ func calcDistanceMap(current string, commitIds []string) map[string]int {
 		distanceMap[id] = dist
 	}
 	return distanceMap
+}
+
+func (m *Model) isListMode() bool {
+	return m.categoryFilter == string(intents.BookmarksFilterList)
+}
+
+func buildListItems(bookmarks []jj.Bookmark) []item {
+	localItems := make([]item, 0)
+	remoteOnlyItems := make([]item, 0)
+	seenLocal := make(map[string]struct{})
+	seenRemote := make(map[string]struct{})
+
+	for _, bookmark := range bookmarks {
+		if bookmark.Name == "" {
+			continue
+		}
+		if bookmark.Local != nil {
+			if _, ok := seenLocal[bookmark.Name]; ok {
+				continue
+			}
+			seenLocal[bookmark.Name] = struct{}{}
+			localItems = append(localItems, item{
+				name:         bookmark.Name,
+				description:  fmt.Sprintf("e: edit -r %s, n: new %s", bookmark.Name, bookmark.Name),
+				bookmarkName: bookmark.Name,
+				priority:     listCommand,
+			})
+			continue
+		}
+
+		for _, remote := range bookmark.Remotes {
+			entryName := fmt.Sprintf("%s@%s", bookmark.Name, remote.Remote)
+			if _, ok := seenRemote[entryName]; ok {
+				continue
+			}
+			seenRemote[entryName] = struct{}{}
+			remoteOnlyItems = append(remoteOnlyItems, item{
+				name:         entryName,
+				description:  fmt.Sprintf("e: edit -r %s, n: new %s", entryName, entryName),
+				bookmarkName: entryName,
+				priority:     listCommand,
+			})
+		}
+	}
+
+	return append(localItems, remoteOnlyItems...)
 }
