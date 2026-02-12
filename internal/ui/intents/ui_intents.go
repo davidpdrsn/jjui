@@ -44,6 +44,7 @@ type BookmarksFilterKind string
 
 const (
 	BookmarksFilterMove    BookmarksFilterKind = "move"
+	BookmarksFilterList    BookmarksFilterKind = "list"
 	BookmarksFilterDelete  BookmarksFilterKind = "delete"
 	BookmarksFilterForget  BookmarksFilterKind = "forget"
 	BookmarksFilterTrack   BookmarksFilterKind = "track"
@@ -67,6 +68,14 @@ type BookmarksApplyShortcut struct {
 }
 
 func (BookmarksApplyShortcut) isIntent() {}
+
+type BookmarksEditSelected struct{}
+
+func (BookmarksEditSelected) isIntent() {}
+
+type BookmarksNewSelected struct{}
+
+func (BookmarksNewSelected) isIntent() {}
 
 type GitFilterKind string
 

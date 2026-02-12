@@ -212,6 +212,7 @@ func (h *Model) buildRightGroups() menuColumn {
 		},
 		itemGroup{
 			h.newModeItem(&h.keyMap.Bookmark.Mode, "Bookmarks"),
+			h.newBindingItem(h.keyMap.Bookmark.List),
 			h.newBindingItem(h.keyMap.Bookmark.Move),
 			h.newBindingItem(h.keyMap.Bookmark.Delete),
 			h.newBindingItem(h.keyMap.Bookmark.Untrack),
