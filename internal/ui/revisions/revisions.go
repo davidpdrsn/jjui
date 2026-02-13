@@ -573,7 +573,7 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		m.quickSearch = ""
 		return nil
 	case intents.CopyCommitSHA:
-		return m.copySelectedCommitSHA()
+		return m.copySelectedChangeID()
 	case intents.StartAceJump:
 		parentOp := m.op
 		// Create ace jump with parent operation
@@ -586,35 +586,35 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	return nil
 }
 
-func (m *Model) copySelectedCommitSHA() tea.Cmd {
+func (m *Model) copySelectedChangeID() tea.Cmd {
 	revision := m.SelectedRevision()
-	if revision == nil || strings.TrimSpace(revision.CommitId) == "" {
+	if revision == nil || strings.TrimSpace(revision.GetChangeId()) == "" {
 		return func() tea.Msg {
 			return intents.AddMessage{Err: errors.New("no revision selected")}
 		}
 	}
 
-	fullSHA, err := m.context.RunCommandImmediate(jj.GetFullCommitIDFromRevision(revision.CommitId))
+	fullChangeID, err := m.context.RunCommandImmediate(jj.GetFullIdsFromRevset(revision.GetChangeId()))
 	if err != nil {
 		return func() tea.Msg {
 			return intents.AddMessage{Err: err}
 		}
 	}
 
-	sha := strings.TrimSpace(string(fullSHA))
-	if sha == "" {
+	changeId := strings.TrimSpace(string(fullChangeID))
+	if changeId == "" {
 		return func() tea.Msg {
-			return intents.AddMessage{Err: errors.New("could not resolve commit sha")}
+			return intents.AddMessage{Err: errors.New("could not resolve change id")}
 		}
 	}
-	if len(sha) > 8 {
-		sha = sha[:8]
+	if len(changeId) > 9 {
+		changeId = changeId[:9]
 	}
 	return func() tea.Msg {
-		if err := writeClipboard(sha); err != nil {
+		if err := writeClipboard(changeId); err != nil {
 			return intents.AddMessage{Err: err}
 		}
-		return intents.AddMessage{Text: "Copied commit SHA: " + sha}
+		return intents.AddMessage{Text: "Copied change id: " + changeId}
 	}
 }
 
