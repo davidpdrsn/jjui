@@ -102,9 +102,9 @@ func TestModel_OperationIntents(t *testing.T) {
 	}
 }
 
-func TestModel_CopyCommitSHA(t *testing.T) {
+func TestModel_CopyChangeID(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.GetFullCommitIDFromRevision("123456789abc")).SetOutput([]byte("123456789abcdef0123456789abcdef01234567"))
+	commandRunner.Expect(jj.GetFullIdsFromRevset("a")).SetOutput([]byte("vpumnpzu123\n"))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
@@ -129,14 +129,14 @@ func TestModel_CopyCommitSHA(t *testing.T) {
 		}
 	})
 
-	assert.Equal(t, "12345678", copied)
-	assert.Equal(t, "Copied commit SHA: 12345678", flashMsg.Text)
+	assert.Equal(t, "vpumnpzu1", copied)
+	assert.Equal(t, "Copied change id: vpumnpzu1", flashMsg.Text)
 	assert.NoError(t, flashMsg.Err)
 }
 
-func TestModel_CopyCommitSHA_ShowsErrorOnClipboardFailure(t *testing.T) {
+func TestModel_CopyChangeID_ShowsErrorOnClipboardFailure(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
-	commandRunner.Expect(jj.GetFullCommitIDFromRevision("123456789abc")).SetOutput([]byte("123456789abcdef0123456789abcdef01234567"))
+	commandRunner.Expect(jj.GetFullIdsFromRevset("a")).SetOutput([]byte("vpumnpzu\n"))
 	defer commandRunner.Verify()
 
 	ctx := test.NewTestContext(commandRunner)
