@@ -45,6 +45,28 @@ func Test_Update_EscapeClosesPreviewBeforeQuit(t *testing.T) {
 	assert.False(t, model.previewModel.Visible())
 }
 
+func Test_Update_EscapeClearsMarkedRevisionsBeforeQuit(t *testing.T) {
+	commandRunner := test.NewTestCommandRunner(t)
+	ctx := test.NewTestContext(commandRunner)
+	ctx.AddCheckedItem(common.SelectedRevision{ChangeId: "change-1", CommitId: "commit-1"})
+
+	model := NewUI(ctx)
+	var msgs []tea.Msg
+	test.SimulateModel(model, tea.Sequence(test.Press(tea.KeyEsc), test.Press(tea.KeyEsc)), func(msg tea.Msg) {
+		msgs = append(msgs, msg)
+	})
+
+	quitCount := 0
+	for _, msg := range msgs {
+		if _, ok := msg.(tea.QuitMsg); ok {
+			quitCount++
+		}
+	}
+
+	assert.Equal(t, 1, quitCount)
+	assert.Empty(t, ctx.GetSelectedRevisions())
+}
+
 func Test_Update_RevsetWithEmptyInputKeepsDefaultRevset(t *testing.T) {
 	commandRunner := test.NewTestCommandRunner(t)
 	defer commandRunner.Verify()
