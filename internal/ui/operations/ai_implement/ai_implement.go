@@ -46,6 +46,7 @@ type Operation struct {
 	remove            bool
 	plan              bool
 	useNix            bool
+	inVmux            bool
 	inTmux            bool
 	removeKey         key.Binding
 	planKey           key.Binding
@@ -242,6 +243,9 @@ func (a *Operation) commandForRevision(commit *jj.Commit, continuations ...tea.C
 		return a.context.RunProgramCommand(jj.AiImplementProgram, args, continuations...)
 	}
 	args := jj.AiImplementAdd(commit.GetChangeId(), a.useNix, a.plan, a.model)
+	if a.inVmux {
+		return a.context.RunProgramCommand("vmux", a.vmuxArgs(commit, args), continuations...)
+	}
 	if a.inTmux {
 		if a.plan {
 			name := tmuxWindowName(a.context.Location, commit.GetChangeId())
@@ -251,6 +255,22 @@ func (a *Operation) commandForRevision(commit *jj.Commit, continuations ...tea.C
 		return a.context.RunProgramCommand("tmux", a.tmuxArgs(commit, args), continuations...)
 	}
 	return a.context.RunProgramCommand(jj.AiImplementProgram, args, continuations...)
+}
+
+func (a *Operation) vmuxArgs(commit *jj.Commit, args []string) []string {
+	name := tmuxWindowName(a.context.Location, commit.GetChangeId())
+	commandArgs := []string{"terminal", "add", "--current-project"}
+	if a.plan {
+		commandArgs = append(commandArgs, "--focus")
+	}
+	if a.context.Location != "" {
+		commandArgs = append(commandArgs, "--cwd", a.context.Location)
+	}
+	if name != "" {
+		commandArgs = append(commandArgs, name)
+	}
+	commandArgs = append(commandArgs, "--", jj.AiImplementProgram)
+	return append(commandArgs, args...)
 }
 
 func (a *Operation) tmuxArgs(commit *jj.Commit, args []string) []string {
@@ -347,6 +367,7 @@ func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRev
 		removeKey:         key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "remove")),
 		planKey:           key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "plan")),
 		useNix:            flakeExists(context.Location),
+		inVmux:            os.Getenv("VMUX") != "",
 		inTmux:            os.Getenv("TMUX") != "",
 		model:             modelCodex53,
 	}
