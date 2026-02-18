@@ -137,6 +137,16 @@ feature;origin;true;false;false;5
 	test.SimulateModel(op, tea.Sequence(pressRune('l'), pressRune('j'), pressRune('n')))
 }
 
+func TestBookmarks_ListMode_OpenPRWithO(t *testing.T) {
+	op, commandRunner := newBookmarksModel(t, []byte(`main;.;false;false;false;7
+feature;origin;true;false;false;5
+`), []byte(""))
+	commandRunner.Expect(jj.Args("gh", "pr", "view", "feature", "--web"))
+	defer commandRunner.Verify()
+
+	test.SimulateModel(op, tea.Sequence(pressRune('l'), pressRune('j'), pressRune('o')))
+}
+
 func TestBookmarks_ListMode_RemoteOnlyOneRowPerRemote(t *testing.T) {
 	op, commandRunner := newBookmarksModel(t, []byte(`feature;origin;true;false;false;5
 feature;upstream;true;false;false;5
@@ -165,6 +175,15 @@ func TestBookmarks_NonListMode_EnterStillApplies(t *testing.T) {
 	defer commandRunner.Verify()
 
 	test.SimulateModel(op, tea.Sequence(pressRune('m'), test.Press(tea.KeyEnter)))
+}
+
+func TestBookmarks_NonListMode_OpenPRWithO(t *testing.T) {
+	op, commandRunner := newBookmarksModel(t, []byte(""), []byte(`main;.;false;false;false;5
+`))
+	commandRunner.Expect(jj.Args("gh", "pr", "view", "main", "--web"))
+	defer commandRunner.Verify()
+
+	test.SimulateModel(op, pressRune('o'))
 }
 
 func newBookmarksModel(t *testing.T, listAllOutput []byte, movableOutput []byte) (*Model, *test.CommandRunner) {

@@ -77,6 +77,10 @@ type BookmarksNewSelected struct{}
 
 func (BookmarksNewSelected) isIntent() {}
 
+type BookmarksOpenPRSelected struct{}
+
+func (BookmarksOpenPRSelected) isIntent() {}
+
 type GitFilterKind string
 
 const (

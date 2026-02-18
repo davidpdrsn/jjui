@@ -64,7 +64,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		SetParents:      key.NewBinding(key.WithKeys(m.SetParents...), key.WithHelp(JoinKeys(m.SetParents), "set parents")),
 		ExecJJ:          key.NewBinding(key.WithKeys(m.ExecJJ...), key.WithHelp(JoinKeys(m.ExecJJ), "interactive jj")),
 		ExecShell:       key.NewBinding(key.WithKeys(m.ExecShell...), key.WithHelp(JoinKeys(m.ExecShell), "interactive shell command")),
-		CopyCommitSHA:    key.NewBinding(key.WithKeys(copyChangeID...), key.WithHelp(JoinKeys(copyChangeID), "copy change id")),
+		CopyCommitSHA:   key.NewBinding(key.WithKeys(copyChangeID...), key.WithHelp(JoinKeys(copyChangeID), "copy change id")),
 		Revert: revertModeKeys[key.Binding]{
 			Mode:   key.NewBinding(key.WithKeys(m.Revert.Mode...), key.WithHelp(JoinKeys(m.Revert.Mode), "revert")),
 			Target: key.NewBinding(key.WithKeys(m.Revert.Target...), key.WithHelp(JoinKeys(m.Revert.Target), "target")),
@@ -114,6 +114,7 @@ func Convert(m KeyMappings[keys]) KeyMappings[key.Binding] {
 		Bookmark: bookmarkModeKeys[key.Binding]{
 			Mode:    key.NewBinding(key.WithKeys(m.Bookmark.Mode...), key.WithHelp(JoinKeys(m.Bookmark.Mode), "bookmarks")),
 			List:    key.NewBinding(key.WithKeys(m.Bookmark.List...), key.WithHelp(JoinKeys(m.Bookmark.List), "list bookmarks")),
+			Open:    key.NewBinding(key.WithKeys(m.Bookmark.Open...), key.WithHelp(JoinKeys(m.Bookmark.Open), "open pr")),
 			Set:     key.NewBinding(key.WithKeys(m.Bookmark.Set...), key.WithHelp(JoinKeys(m.Bookmark.Set), "set bookmark")),
 			Delete:  key.NewBinding(key.WithKeys(m.Bookmark.Delete...), key.WithHelp(JoinKeys(m.Bookmark.Delete), "delete")),
 			Move:    key.NewBinding(key.WithKeys(m.Bookmark.Move...), key.WithHelp(JoinKeys(m.Bookmark.Move), "move")),
@@ -261,6 +262,7 @@ type KeyMappings[T any] struct {
 type bookmarkModeKeys[T any] struct {
 	Mode    T `toml:"mode"`
 	List    T `toml:"list"`
+	Open    T `toml:"open"`
 	Set     T `toml:"set"`
 	Delete  T `toml:"delete"`
 	Move    T `toml:"move"`

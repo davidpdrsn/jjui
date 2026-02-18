@@ -111,6 +111,7 @@ func (m *Model) ShortHelp() []key.Binding {
 		m.keymap.Bookmark.Track,
 		m.keymap.Bookmark.Untrack,
 		m.keymap.Bookmark.List,
+		m.keymap.Bookmark.Open,
 		m.filterKey,
 		key.NewBinding(
 			key.WithKeys("tab/shift+tab"),
@@ -258,10 +259,11 @@ func (m *Model) loadMovables() tea.Msg {
 			extraFlags = append(extraFlags, "--allow-backwards")
 		}
 		elem := item{
-			name:     name,
-			priority: moveCommand,
-			args:     jj.BookmarkMove(m.current.GetChangeId(), b.Name, extraFlags...),
-			dist:     m.distance(b.CommitId),
+			name:         name,
+			bookmarkName: b.Name,
+			priority:     moveCommand,
+			args:         jj.BookmarkMove(m.current.GetChangeId(), b.Name, extraFlags...),
+			dist:         m.distance(b.CommitId),
 		}
 		if b.Name == "main" || b.Name == "master" {
 			elem.key = "m"
@@ -283,27 +285,30 @@ func (m *Model) loadAll() tea.Msg {
 			distance := m.distance(b.CommitId)
 			if b.IsDeletable() {
 				items = append(items, item{
-					name:     fmt.Sprintf("delete '%s'", b.Name),
-					priority: deleteCommand,
-					dist:     distance,
-					args:     jj.BookmarkDelete(b.Name),
+					name:         fmt.Sprintf("delete '%s'", b.Name),
+					bookmarkName: b.Name,
+					priority:     deleteCommand,
+					dist:         distance,
+					args:         jj.BookmarkDelete(b.Name),
 				})
 			}
 
 			items = append(items, item{
-				name:     fmt.Sprintf("forget '%s'", b.Name),
-				priority: forgetCommand,
-				dist:     distance,
-				args:     jj.BookmarkForget(b.Name),
+				name:         fmt.Sprintf("forget '%s'", b.Name),
+				bookmarkName: b.Name,
+				priority:     forgetCommand,
+				dist:         distance,
+				args:         jj.BookmarkForget(b.Name),
 			})
 
 			// Track local bookmarks as they have no remotes
 			if b.IsTrackable() {
 				items = append(items, item{
-					name:     fmt.Sprintf("track '%s'", b.Name),
-					priority: trackCommand,
-					dist:     distance,
-					args:     jj.BookmarkTrack(b.Name, ""),
+					name:         fmt.Sprintf("track '%s'", b.Name),
+					bookmarkName: b.Name,
+					priority:     trackCommand,
+					dist:         distance,
+					args:         jj.BookmarkTrack(b.Name, ""),
 				})
 			}
 
@@ -311,17 +316,19 @@ func (m *Model) loadAll() tea.Msg {
 				nameWithRemote := fmt.Sprintf("%s@%s", b.Name, remote.Remote)
 				if remote.Tracked {
 					items = append(items, item{
-						name:     fmt.Sprintf("untrack '%s'", nameWithRemote),
-						priority: untrackCommand,
-						dist:     distance,
-						args:     jj.BookmarkUntrack(b.Name, remote.Remote),
+						name:         fmt.Sprintf("untrack '%s'", nameWithRemote),
+						bookmarkName: b.Name,
+						priority:     untrackCommand,
+						dist:         distance,
+						args:         jj.BookmarkUntrack(b.Name, remote.Remote),
 					})
 				} else {
 					items = append(items, item{
-						name:     fmt.Sprintf("track '%s'", nameWithRemote),
-						priority: trackCommand,
-						dist:     distance,
-						args:     jj.BookmarkTrack(b.Name, remote.Remote),
+						name:         fmt.Sprintf("track '%s'", nameWithRemote),
+						bookmarkName: b.Name,
+						priority:     trackCommand,
+						dist:         distance,
+						args:         jj.BookmarkTrack(b.Name, remote.Remote),
 					})
 				}
 			}
@@ -407,6 +414,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return m.handleIntent(intents.BookmarksEditSelected{})
 		case key.Matches(msg, m.keymap.New) && m.isListMode():
 			return m.handleIntent(intents.BookmarksNewSelected{})
+		case key.Matches(msg, m.keymap.Bookmark.Open):
+			return m.handleIntent(intents.BookmarksOpenPRSelected{})
 		case key.Matches(msg, m.keymap.Bookmark.List) && m.categoryFilter != string(intents.BookmarksFilterList):
 			return m.handleIntent(intents.BookmarksFilter{Kind: intents.BookmarksFilterList})
 		case key.Matches(msg, m.keymap.Bookmark.Move) && m.categoryFilter != "move":
@@ -470,6 +479,13 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 			return nil
 		}
 		return m.context.RunCommand(jj.Args("new", selected.bookmarkName), common.Refresh, common.Close)
+	case intents.BookmarksOpenPRSelected:
+		selected, ok := m.selectedItem()
+		if !ok || selected.bookmarkName == "" {
+			return nil
+		}
+		bookmark := m.bookmarkNameForPR(selected.bookmarkName)
+		return m.context.RunProgramCommand("gh", []string{"pr", "view", bookmark, "--web"}, common.Close)
 	case intents.BookmarksApplyShortcut:
 		if m.categoryFilter == "" {
 			return nil
@@ -933,6 +949,19 @@ func calcDistanceMap(current string, commitIds []string) map[string]int {
 
 func (m *Model) isListMode() bool {
 	return m.categoryFilter == string(intents.BookmarksFilterList)
+}
+
+func (m *Model) bookmarkNameForPR(bookmark string) string {
+	for _, remote := range m.remoteNames {
+		if remote == "local" {
+			continue
+		}
+		suffix := "@" + remote
+		if strings.HasSuffix(bookmark, suffix) {
+			return strings.TrimSuffix(bookmark, suffix)
+		}
+	}
+	return bookmark
 }
 
 func buildListItems(bookmarks []jj.Bookmark) []item {
