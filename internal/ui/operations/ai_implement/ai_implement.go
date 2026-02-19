@@ -26,10 +26,11 @@ import (
 const refreshDelay = 500 * time.Millisecond
 
 const (
-	modelCodex52 = "codex-5.2"
-	modelCodex53 = "codex-5.3"
-	modelOpus45  = "opus-4.5"
-	modelOpus46  = "opus-4.6"
+	modelCodex52      = "codex-5.2"
+	modelCodex53      = "codex-5.3"
+	modelCodex53Spark = "codex-5.3-spark"
+	modelOpus45       = "opus-4.5"
+	modelOpus46       = "opus-4.6"
 )
 
 var (
@@ -333,20 +334,27 @@ func (a *Operation) startModelPicker() tea.Cmd {
 					return a.applyCommands()()
 				},
 				key.NewBinding(key.WithKeys("2"), key.WithHelp("2", "codex 5.2"))),
+			confirmation.WithOption("Codex 5.3 Spark",
+				func() tea.Msg {
+					a.model = modelCodex53Spark
+					a.confirmation = nil
+					return a.applyCommands()()
+				},
+				key.NewBinding(key.WithKeys("3"), key.WithHelp("3", "codex 5.3 spark"))),
 			confirmation.WithOption("Opus 4.6",
 				func() tea.Msg {
 					a.model = modelOpus46
 					a.confirmation = nil
 					return a.applyCommands()()
 				},
-				key.NewBinding(key.WithKeys("3"), key.WithHelp("3", "opus 4.6"))),
+				key.NewBinding(key.WithKeys("4"), key.WithHelp("4", "opus 4.6"))),
 			confirmation.WithOption("Opus 4.5",
 				func() tea.Msg {
 					a.model = modelOpus45
 					a.confirmation = nil
 					return a.applyCommands()()
 				},
-				key.NewBinding(key.WithKeys("4"), key.WithHelp("4", "opus 4.5"))),
+				key.NewBinding(key.WithKeys("5"), key.WithHelp("5", "opus 4.5"))),
 			confirmation.WithOption("Cancel",
 				confirmation.Close,
 				key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel"))),
