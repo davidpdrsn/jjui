@@ -66,17 +66,68 @@ func init() {
 }
 
 func getJJRootDir(location string) (string, error) {
-	cmd := exec.Command("jj", "root", "--color=always")
+	env := os.Environ()
+	output, err := runJJRootCommand(location, env)
+	if err == nil {
+		return strings.TrimSpace(string(output)), nil
+	}
+	if !inVmuxEnv(env) {
+		return "", err
+	}
+
+	output, retryErr := runJJRootCommand(location, withoutEnvKeys(env, "VMUX", "VMUX_TERMINAL_ID"))
+	if retryErr != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+func runJJRootCommand(location string, env []string) ([]byte, error) {
+	cmd := exec.Command("jj", "root", "--color=never")
 	cmd.Dir = location
+	cmd.Env = env
 
 	output, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return "", fmt.Errorf("%s", strings.TrimSpace(string(exitErr.Stderr)))
+			return nil, fmt.Errorf("%s", strings.TrimSpace(string(exitErr.Stderr)))
 		}
-		return "", err
+		return nil, err
 	}
-	return strings.TrimSpace(string(output)), nil
+	return output, nil
+}
+
+func inVmuxEnv(env []string) bool {
+	for _, entry := range env {
+		name, _, found := strings.Cut(entry, "=")
+		if !found {
+			continue
+		}
+		if name == "VMUX" || name == "VMUX_TERMINAL_ID" {
+			return true
+		}
+	}
+	return false
+}
+
+func withoutEnvKeys(env []string, keys ...string) []string {
+	blocked := make(map[string]struct{}, len(keys))
+	for _, key := range keys {
+		blocked[key] = struct{}{}
+	}
+
+	filtered := make([]string, 0, len(env))
+	for _, entry := range env {
+		name, _, found := strings.Cut(entry, "=")
+		if !found {
+			continue
+		}
+		if _, skip := blocked[name]; skip {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return filtered
 }
 
 func main() {

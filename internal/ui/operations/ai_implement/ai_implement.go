@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -48,7 +49,9 @@ type Operation struct {
 	plan              bool
 	useNix            bool
 	inVmux            bool
+	hasVmuxTerminalID bool
 	inTmux            bool
+	vmuxAvailable     func() bool
 	removeKey         key.Binding
 	planKey           key.Binding
 	confirmation      *confirmation.Model
@@ -244,7 +247,7 @@ func (a *Operation) commandForRevision(commit *jj.Commit, continuations ...tea.C
 		return a.context.RunProgramCommand(jj.AiImplementProgram, args, continuations...)
 	}
 	args := jj.AiImplementAdd(commit.GetChangeId(), a.useNix, a.plan, a.model)
-	if a.inVmux {
+	if a.shouldUseVmux() {
 		return a.context.RunProgramCommand("vmux", a.vmuxArgs(commit, args), continuations...)
 	}
 	if a.inTmux {
@@ -256,6 +259,21 @@ func (a *Operation) commandForRevision(commit *jj.Commit, continuations ...tea.C
 		return a.context.RunProgramCommand("tmux", a.tmuxArgs(commit, args), continuations...)
 	}
 	return a.context.RunProgramCommand(jj.AiImplementProgram, args, continuations...)
+}
+
+func (a *Operation) shouldUseVmux() bool {
+	if !a.inVmux || !a.hasVmuxTerminalID {
+		return false
+	}
+	if a.vmuxAvailable == nil {
+		return true
+	}
+	return a.vmuxAvailable()
+}
+
+func commandExists(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
 }
 
 func (a *Operation) vmuxArgs(commit *jj.Commit, args []string) []string {
@@ -376,7 +394,9 @@ func NewOperation(context *context.MainContext, selectedRevisions jj.SelectedRev
 		planKey:           key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "plan")),
 		useNix:            flakeExists(context.Location),
 		inVmux:            os.Getenv("VMUX") != "",
+		hasVmuxTerminalID: os.Getenv("VMUX_TERMINAL_ID") != "",
 		inTmux:            os.Getenv("TMUX") != "",
+		vmuxAvailable:     func() bool { return commandExists("vmux") },
 		model:             modelCodex53,
 	}
 }
