@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -352,6 +353,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			return m.handleIntent(intents.Undo{})
 		case key.Matches(msg, m.keyMap.Redo) && m.revisions.InNormalMode():
 			return m.handleIntent(intents.Redo{})
+		case key.Matches(msg, m.keyMap.Bookmark.Open) && m.revisions.InNormalMode():
+			return m.handleIntent(intents.OpenBookmarkPR{})
 		case key.Matches(msg, m.keyMap.Bookmark.Mode) && m.revisions.InNormalMode():
 			return m.handleIntent(intents.OpenBookmarks{})
 		case key.Matches(msg, m.keyMap.ExpandStatus):
@@ -739,6 +742,8 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 		m.stacked = model
 		m.pushLayer(uiLayerStacked, "bookmarks")
 		return m.stacked.Init()
+	case intents.OpenBookmarkPR:
+		return m.openPRForSelectedRevision()
 	case intents.OpenGit:
 		if !m.revisions.InNormalMode() {
 			return nil
@@ -828,6 +833,45 @@ func (m *Model) handleIntent(intent intents.Intent) tea.Cmd {
 	default:
 		return nil
 	}
+}
+
+func (m *Model) openPRForSelectedRevision() tea.Cmd {
+	rev := m.revisions.SelectedRevision()
+	if rev == nil {
+		return func() tea.Msg {
+			return intents.AddMessage{Err: errors.New("no revision selected")}
+		}
+	}
+
+	output, err := m.context.RunCommandImmediate(jj.BookmarkList(rev.GetChangeId()))
+	if err != nil {
+		return func() tea.Msg {
+			return intents.AddMessage{Err: err}
+		}
+	}
+
+	bookmark := bookmarkForPR(jj.ParseBookmarkListOutput(string(output)))
+	if bookmark == "" {
+		return func() tea.Msg {
+			return intents.AddMessage{Err: errors.New("no bookmark found on selected revision")}
+		}
+	}
+
+	return m.context.RunProgramCommand("gh", []string{"pr", "view", bookmark, "--web"})
+}
+
+func bookmarkForPR(bookmarks []jj.Bookmark) string {
+	for _, bookmark := range bookmarks {
+		if bookmark.Name != "" && bookmark.Local != nil {
+			return bookmark.Name
+		}
+	}
+	for _, bookmark := range bookmarks {
+		if bookmark.Name != "" {
+			return bookmark.Name
+		}
+	}
+	return ""
 }
 
 func (m *Model) isSafeToQuit() bool {

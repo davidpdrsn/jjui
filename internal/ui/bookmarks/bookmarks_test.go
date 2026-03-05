@@ -144,7 +144,7 @@ feature;origin;true;false;false;5
 	commandRunner.Expect(jj.Args("gh", "pr", "view", "feature", "--web"))
 	defer commandRunner.Verify()
 
-	test.SimulateModel(op, tea.Sequence(pressRune('l'), pressRune('j'), pressRune('o')))
+	test.SimulateModel(op, tea.Sequence(pressRune('l'), pressRune('j'), pressRune('O')))
 }
 
 func TestBookmarks_ListMode_RemoteOnlyOneRowPerRemote(t *testing.T) {
@@ -183,7 +183,7 @@ func TestBookmarks_NonListMode_OpenPRWithO(t *testing.T) {
 	commandRunner.Expect(jj.Args("gh", "pr", "view", "main", "--web"))
 	defer commandRunner.Verify()
 
-	test.SimulateModel(op, pressRune('o'))
+	test.SimulateModel(op, pressRune('O'))
 }
 
 func newBookmarksModel(t *testing.T, listAllOutput []byte, movableOutput []byte) (*Model, *test.CommandRunner) {

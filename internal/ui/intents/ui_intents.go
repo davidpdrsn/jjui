@@ -32,6 +32,10 @@ type OpenBookmarks struct{}
 
 func (OpenBookmarks) isIntent() {}
 
+type OpenBookmarkPR struct{}
+
+func (OpenBookmarkPR) isIntent() {}
+
 type OpenGit struct{}
 
 func (OpenGit) isIntent() {}
