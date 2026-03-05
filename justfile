@@ -9,6 +9,10 @@ run *args:
 build:
     go build ./cmd/jjui
 
+# Install jjui binary
+install:
+    go build -o ~/.bin/jjui ./cmd/jjui
+
 # Rebase changes on top of upstream
 rebase-upstream:
     jj git fetch --remote=upstream
